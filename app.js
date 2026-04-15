@@ -1,6 +1,21 @@
 window.VNOCR_BUILD = "production";
 window.VNOCR_DEBUG = false; // Set to true to enable high-fidelity lifecycle tracing
 const logTrace = (msg) => { if (window.VNOCR_DEBUG) console.log(`[TRACE] ${msg}`); };
+
+/**
+ * Diagnostics: Memory Usage Trace (Gold v3.8)
+ * Leverages performance.memory (Chromium) to audit heap pressure during ML inference.
+ */
+const logMemoryUsage = (context = "") => {
+    if (!window.VNOCR_DEBUG) return;
+    if (performance && performance.memory) {
+        const { usedJSHeapSize, totalJSHeapSize, jsHeapSizeLimit } = performance.memory;
+        const usedMB = (usedJSHeapSize / (1024 * 1024)).toFixed(1);
+        const totalMB = (totalJSHeapSize / (1024 * 1024)).toFixed(1);
+        const limitMB = (jsHeapSizeLimit / (1024 * 1024)).toFixed(1);
+        console.debug(`[MEMORY] ${context} Used: ${usedMB}MB | Total: ${totalMB}MB | Limit: ${limitMB}MB`);
+    }
+};
 /*
   PERSONAL OCR HARDENING PHASE:
   DO NOT MODIFY the following functions during patches:
@@ -1188,6 +1203,7 @@ async function captureFrame(rect = null) {
             if (window.VNOCR_DEBUG) {
                 if (!isProcessing) console.warn(`[${new Date().toISOString()}] [CAPTURE] Double-release detected for Gen ${myGen}`);
                 console.debug(`[${new Date().toISOString()}] [CAPTURE] Lock released: Gen ${myGen}`);
+                logMemoryUsage("Post-Capture");
             }
             isProcessing = false;
             if (EngineManager.isReady()) {
