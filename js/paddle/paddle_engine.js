@@ -46,8 +46,8 @@ export class PaddleOCR {
             const assets = [
                 { url: modelBase + 'manifest.json', type: 'local' },
                 { url: modelBase + 'japan_dict.txt', type: 'local' },
-                { url: 'https://pub-77a4ba72da6d4b9e892b6511ae694813.r2.dev/personalocr-assets/models/paddle/det.onnx', type: 'remote' },
-                { url: 'https://pub-77a4ba72da6d4b9e892b6511ae694813.r2.dev/personalocr-assets/models/paddle/rec.onnx', type: 'remote' }
+                { url: 'https://pub-77a4ba72da6d4b9e892b6511ae694813.r2.dev/models/paddle/det.onnx', type: 'remote' },
+                { url: 'https://pub-77a4ba72da6d4b9e892b6511ae694813.r2.dev/models/paddle/rec.onnx', type: 'remote' }
             ];
             
             const results = await Promise.all(assets.map(a => fetch(a.url, { method: 'HEAD' })));
