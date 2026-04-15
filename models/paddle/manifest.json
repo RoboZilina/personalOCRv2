@@ -1,12 +1,12 @@
 {
   "det": {
     "path": "det.onnx",
-    "remote_url": "https://github.com/RoboZilina/personalOCR/releases/latest/download/det.onnx",
+    "remote_url": "https://pub-77a4ba72da6d4b9e892b6511ae694813.r2.dev/personalocr-assets/models/paddle/det.onnx",
     "input_size": [960, 960]
   },
   "rec": {
     "path": "rec.onnx",
-    "remote_url": "https://github.com/RoboZilina/personalOCR/releases/latest/download/rec.onnx",
+    "remote_url": "https://pub-77a4ba72da6d4b9e892b6511ae694813.r2.dev/personalocr-assets/models/paddle/rec.onnx",
     "input_size": [48, 320]
   },
   "dict": {
