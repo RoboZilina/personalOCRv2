@@ -88,6 +88,15 @@ export function setSetting(key, value) {
 }
 
 /**
+ * Normalizes a boolean setting value, handling defaults and string-coercion from localStorage.
+ */
+function normalizeBoolean(val, defaultValue) {
+    if (val === undefined || val === null) return defaultValue;
+    if (val === "") return defaultValue;
+    return String(val) !== 'false' && !!val;
+}
+
+/**
  * Updates UI elements to reflect current settings.
  */
 export function applySettingsToUI() {
@@ -101,7 +110,7 @@ export function applySettingsToUI() {
     // 2. Auto-Capture Toggle
     const autoToggle = document.querySelector("#auto-capture-toggle");
     if (autoToggle) {
-        autoToggle.checked = currentSettings.autoCapture;
+        autoToggle.checked = normalizeBoolean(currentSettings.autoCapture, defaultSettings.autoCapture);
         // Trigger the visual update in UI if there's a label
         const event = new Event('change');
         autoToggle.dispatchEvent(event);
@@ -122,15 +131,19 @@ export function applySettingsToUI() {
     // 4. History Visibility
     const root = document.querySelector(".dashboard-root");
     if (root) {
-        root.classList.toggle('history-hidden', !currentSettings.historyVisible);
+        const isVisible = normalizeBoolean(currentSettings.historyVisible, defaultSettings.historyVisible);
+        root.classList.toggle('history-hidden', !isVisible);
     }
 
     // 4.5 Capture Preview Visibility
-    document.body.classList.toggle('preview-hidden', String(currentSettings.previewVisible) === 'false');
+    const previewVisible = normalizeBoolean(currentSettings.previewVisible, defaultSettings.previewVisible);
+    document.body.classList.toggle('preview-hidden', !previewVisible);
 
     // Note: showHeavyWarning is used for logic, specifically the startup banner
     const warningCheckbox = document.querySelector("#banner-nocall-checkbox");
-    if (warningCheckbox) warningCheckbox.checked = !currentSettings.showHeavyWarning;
+    if (warningCheckbox) {
+        warningCheckbox.checked = !normalizeBoolean(currentSettings.showHeavyWarning, defaultSettings.showHeavyWarning);
+    }
 
     // 5. Size modifiers via body classes
     const currentTextAreaSize = currentSettings.textAreaSize || 'standard';
@@ -151,8 +164,15 @@ export function applySettingsToUI() {
     document.querySelectorAll('.menu-subitem-btn[data-setting]').forEach(btn => {
         const settingKey = btn.dataset.setting;
         const val = btn.dataset.value;
-        const currentVal = currentSettings[settingKey] || defaultSettings[settingKey]; // Defensive fallback
-        btn.classList.toggle('active', String(currentVal) === val);
+        const currentRaw = currentSettings[settingKey];
+        const defaultValue = defaultSettings[settingKey];
+        
+        // Use normalization for boolean settings, direct string match for others
+        const effectiveVal = (typeof defaultValue === 'boolean') 
+            ? normalizeBoolean(currentRaw, defaultValue)
+            : (currentRaw !== undefined ? currentRaw : defaultValue);
+
+        btn.classList.toggle('active', String(effectiveVal) === val);
     });
 }
 
