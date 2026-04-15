@@ -999,6 +999,9 @@ function boostContrast(canvas, factor = 1.08) {
 }
 
 async function captureFrame(rect = null) {
+    // Hardening v3.4: Null-selection guard (Fixes denormalizeSelection TypeError)
+    if (!rect && !window.selectionRect) return; 
+    
     if (isProcessing) return; // Prevent overlapping cycles (Gold v3.1)
     const myGen = ++captureGeneration;
     logTrace(`Capture started. Gen: ${myGen}`);
@@ -1067,8 +1070,14 @@ async function captureFrame(rect = null) {
 
         const engineInfo = EngineManager.getInfo();
 
-        const inferenceResults = await Promise.all(canvases.map(async (clean, i) => {
-            if (!clean.width || !clean.height) return null;
+        // 3. Sequential Inference Loop (Hardening v3.4: Fixes Session Mismatch)
+        const inferenceResults = [];
+        for (let i = 0; i < canvases.length; i++) {
+            const clean = canvases[i];
+            if (!clean.width || !clean.height) {
+                inferenceResults.push(null);
+                continue;
+            }
 
             if (canvases.length > 1 && getSetting('debug')) {
                 console.debug(`[INFERENCE-DEBUG] processing slice ${i + 1}/${canvases.length}`);
@@ -1082,12 +1091,13 @@ async function captureFrame(rect = null) {
 
             try {
                 const result = await EngineManager.runOCR(clean);
-                return result;
+                inferenceResults.push(result);
             } catch (error) {
+                console.error("[INFERENCE-ERROR] Execution failed for slice:", i, error);
                 EngineManager.emitError(error);
-                return { text: EngineManager.handleError(error), confidence: null };
+                inferenceResults.push({ text: EngineManager.handleError(error), confidence: null });
             }
-        }));
+        }
 
         if (captureGeneration !== myGen) return;
 

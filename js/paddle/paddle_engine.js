@@ -18,6 +18,7 @@ export class PaddleOCR {
         this.dict = [];
         this.normalize = { mean: [0.5, 0.5, 0.5], std: [0.5, 0.5, 0.5] };
         this.isLoaded = false;
+        this.busy = false; // Hardening v3.4: Concurrency Lock
         this.initPromise = this.load();
 
         // Hardening Patch v2.5: Pre-allocated buffer for zero-churn recognition
@@ -285,6 +286,11 @@ export class PaddleOCR {
 
     async recognize(cropCanvas) {
         if (!this.recSession) return { text: '' };
+        if (this.busy) {
+            console.warn("[ENGINE] PaddleOCR: Inference skipped — session is busy.");
+            return { text: '' };
+        }
+        this.busy = true;
 
         try {
             const inputSize = this.manifest.rec.input_size || [48, 320];
@@ -324,9 +330,8 @@ export class PaddleOCR {
             logits = null;
             
             return text;
-        } catch (err) {
-            console.error("PaddleOCR: Recognition Error:", err);
-            return { text: '' };
+        } finally {
+            this.busy = false;
         }
     }
 

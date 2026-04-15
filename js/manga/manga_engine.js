@@ -13,6 +13,7 @@ export class MangaOCREngine {
         this.encoderSession = null;
         this.decoderSession = null;
         this.vocab = null;
+        this.busy = false; // Hardening v3.4: Concurrency Lock
         
         // Support both legacy positional callback and modern options object
         const finalOptions = (typeof options === 'object') ? options : { reportStatus: options };
@@ -243,6 +244,11 @@ export class MangaOCREngine {
         if (!this.encoderSession || !this.decoderSession) {
             throw new Error("MangaOCREngine: ONNX sessions not initialized. Call load() first.");
         }
+        if (this.busy) {
+            console.warn("[ENGINE] MangaOCR: Inference skipped — session is busy.");
+            return { text: '' };
+        }
+        this.busy = true;
 
         try {
             const pixelValues = this._preprocessToTensor(sourceCanvas);
@@ -285,9 +291,8 @@ export class MangaOCREngine {
             text = text.replace(/[・.]{2,}/g, m => '.'.repeat(m.length));
             text = text.replace(/\s+/g, '');                              // strip whitespace
             return { text };
-        } catch (err) {
-            console.error("[MANGA-ERROR] Recognition Failed:", err);
-            return { text: "" };
+        } finally {
+            this.busy = false;
         }
     }
 
