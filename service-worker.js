@@ -63,10 +63,18 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// 3. Simple Fetch Handler (No Header Injection)
+// 3. Simple Fetch Handler with Cross-Origin Isolation (Guard v3.8)
 self.addEventListener('fetch', (event) => {
   // Only handle GET requests
   if (event.request.method !== 'GET') return;
+
+  const url = new URL(event.request.url);
+
+  // CRITICAL: Only handle same-origin requests.
+  // This ensures that remote R2 Models and GitHub Releases are NOT intercepted or cached.
+  if (url.origin !== self.location.origin) {
+    return;
+  }
 
   // Simplified Strategy: Cache Match -> Network Fallback
   event.respondWith(
@@ -74,7 +82,7 @@ self.addEventListener('fetch', (event) => {
       // Return cached asset if found
       if (cachedResponse) return cachedResponse;
 
-      // Otherwise, fetch from network without intercepting/rewriting
+      // Otherwise, fetch from network
       return fetch(event.request).catch(() => {
         // Silent fail for network errors (e.g., offline with no cache)
         return null;

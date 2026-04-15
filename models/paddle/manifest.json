@@ -11,5 +11,6 @@
   },
   "dict": {
     "path": "japan_dict.txt"
-  }
+  },
+  "note": "Local ONNX files intentionally omitted; models loaded from remote_url due to size constraints."
 }

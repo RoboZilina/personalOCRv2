@@ -15,5 +15,6 @@
   },
   "preprocessor": {
     "path": "preprocessor_config.json"
-  }
+  },
+  "note": "Local ONNX files intentionally omitted; models loaded from remote_url due to size constraints."
 }
