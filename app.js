@@ -2245,7 +2245,7 @@ function initEventListeners() {
 
 /** Public API Namespace (Auditability Phase) */
 window.VNOCR = {
-    version: '3.1.1-GOLD-CF',
+    version: '3.8.0-GOLD-CERTIFIED',
     isReady: EngineManager.isReady,
     drawSelectionRect: window.drawSelectionRect,
     captureFrame: window.captureFrame,

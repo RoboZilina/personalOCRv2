@@ -1,9 +1,9 @@
-# personalOCR — Gold Baseline (v3.1-production)
+# personalOCR — Gold Baseline (v3.8.0-Certified)
 
-A high-performance, browser-only Japanese OCR suite for Japanese Media. This branch is optimized for Cloudflare Pages deployment, combining the latest architectural hardening with edge-accelerated hardware access.
+A high-performance, browser-only Japanese OCR suite for Japanese Media. This branch is the definitive **Gold v3.8 Certified Build**, optimized for Cloudflare Pages with full hardware acceleration, real-time progress tracking, and hardened inference locks.
 
-## v3.1: The "Gold" Hardening Milestone
-This version represents the definitive production standard for the project. It backports critical reliability improvements from the core development baseline to the high-performance Cloudflare environment, ensuring 100% deterministic operation.
+## v3.8: The "Definitive Certification" Milestone
+This version represents the final production-hardened standard. It incorporates high-fidelity progress tracking, surgical lock hardening across all neural engines, and an airtight static-gate audit to ensure 100% stability.
 
 ## Key Features & Hardening
 - **Native WebGPU Acceleration** — GPU-accelerated inference for PaddleOCR and MangaOCR, enabled via native `_headers` configuration.

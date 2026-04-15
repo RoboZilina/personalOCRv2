@@ -1,4 +1,4 @@
-const CACHE_NAME = 'personalocr-cloudflare-gold-v3.3';
+const CACHE_NAME = 'personalocr-cloudflare-gold-v3.8.0';
 
 const ASSETS = [
   '/',
