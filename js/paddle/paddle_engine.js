@@ -77,6 +77,7 @@ export class PaddleOCR {
 
             // Standardize model base path
             const modelBase = "./models/paddle/";
+            const S = window.EngineManager?.STATUS || { LOADING: 'loading', DOWNLOADING: 'downloading', READY: 'ready', WARMING: 'warming-up' };
 
             if (this.manifest.normalize) {
                 this.normalize = this.manifest.normalize;
@@ -94,30 +95,32 @@ export class PaddleOCR {
             const executionProviders = useWebGPU ? ['webgpu', 'wasm'] : ['wasm'];
 
             // Load detection model (Hybrid: Remote Priority)
-            this.reportStatus('loading', '🟡 PaddleOCR: loading detection model…');
+            this.reportStatus(S.DOWNLOADING, '🟡 PaddleOCR: downloading detection model…', 0.1);
             const detPath = this.manifest.det.remote_url || (modelBase + this.manifest.det.path);
             let detBuffer = await fetchWithProgress(
                 detPath,
-                (p) => this.reportStatus('loading', `🟡 PaddleOCR: Loading ${(p * 50).toFixed(0)}%`)
+                (p) => this.reportStatus(S.DOWNLOADING, '🟡 PaddleOCR: downloading detection model…', 0.1 + (p * 0.4))
             );
+            this.reportStatus(S.LOADING, '🟡 PaddleOCR: initializing detection…', 0.5);
             this.detSession = await ort.InferenceSession.create(detBuffer, { executionProviders });
             console.log(`[ENGINE] PaddleOCR Detection Session — Active Backend: ${this.detSession.executionProvider || 'unknown'}`);
             detBuffer = null; // Memory Guard: Release buffer immediately after session creation
             await new Promise(resolve => setTimeout(resolve, 50)); // Memory Guard: Yield to allow GC breathing room
 
             // Load recognition model
-            this.reportStatus('loading', '🟡 PaddleOCR: loading recognition model…');
+            this.reportStatus(S.DOWNLOADING, '🟡 PaddleOCR: downloading recognition model…', 0.6);
             const recPath = this.manifest.rec.remote_url || (modelBase + this.manifest.rec.path);
             let recBuffer = await fetchWithProgress(
                 recPath,
-                (p) => this.reportStatus('loading', `🟡 PaddleOCR: Loading ${(50 + p * 50).toFixed(0)}%`)
+                (p) => this.reportStatus(S.DOWNLOADING, '🟡 PaddleOCR: downloading recognition model…', 0.6 + (p * 0.3))
             );
+            this.reportStatus(S.LOADING, '🟡 PaddleOCR: initializing recognition…', 0.9);
             this.recSession = await ort.InferenceSession.create(recBuffer, { executionProviders });
             console.log(`[ENGINE] PaddleOCR Recognition Session — Active Backend: ${this.recSession.executionProvider || 'unknown'}`);
             recBuffer = null; // Memory Guard: Release buffer
 
             // Load dictionary
-            this.reportStatus('loading', '🟡 PaddleOCR: loading dictionary…');
+            this.reportStatus(S.LOADING, '🟡 PaddleOCR: loading dictionary…', 0.95);
             const dictRes = await fetch(modelBase + this.manifest.dict.path);
             const dictText = await dictRes.text();
             this.dict = dictText.split(/\r?\n/);
@@ -126,10 +129,11 @@ export class PaddleOCR {
             }
 
             // Warm-up WebGPU Shaders (if active)
+            this.reportStatus(S.WARMING, '🟡 PaddleOCR: warming up…', 0.98);
             await this.warmUp();
 
             this.isLoaded = true;
-            this.reportStatus('ready', '🟢 PaddleOCR: ready.');
+            this.reportStatus(S.READY, '🟢 PaddleOCR: ready.');
         } catch (err) {
             console.error("PaddleOCR: Load Error:", err);
             this.reportStatus('error', '🔴 PaddleOCR: Load Failed.');

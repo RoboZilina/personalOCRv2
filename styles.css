@@ -247,7 +247,30 @@ body.text-area-large .app-main.manga-layout .transcription-tray { width: 650px; 
 .slider-group input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); cursor: pointer; border: 2px solid #000; box-shadow: 0 0 10px var(--accent-glow); }
 
 /* STATUS ELEMENTS */
-.status-pill { font-size: 11px; background: #000; color: var(--text-dim); padding: 4px 12px; border-radius: 20px; border: 1px solid var(--border); transition: 0.3s; }
+.status-pill { 
+    font-size: 11px; 
+    background: #000; 
+    color: var(--text-dim); 
+    padding: 4px 12px; 
+    border-radius: 20px; 
+    border: 1px solid var(--border); 
+    transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease; 
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Progress Fill Overlay (Gold v3.7) */
+.status-pill[data-progress="true"] {
+    background: linear-gradient(to right, 
+        rgba(255, 255, 255, 0.15) 0%, 
+        rgba(255, 255, 255, 0.15) var(--progress, 0%), 
+        transparent var(--progress, 0%)
+    ) #000;
+}
+
 .status-pill.loading { color: #f87171; border-color: #f87171; }
 .status-pill.ready { color: #34d399; border-color: #34d399; }
 .status-pill.processing { color: #fbbf24; border-color: #fbbf24; }

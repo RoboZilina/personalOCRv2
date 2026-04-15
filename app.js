@@ -164,15 +164,15 @@ const EngineManager = (() => {
     }
 
     // Notify all listeners
-    function notifyStatus(state, text) {
+    function notifyStatus(state, text, progress = null) {
         engineState = state;
 
-        if (state === 'ready') emit('ready', text);
-        if (state === 'loading') emit('loading', text);
-        if (state === 'error') emit('error', text);
+        if (state === STATUS.READY) emit('ready', text);
+        if (state === STATUS.LOADING || state === STATUS.DOWNLOADING) emit('loading', text);
+        if (state === STATUS.ERROR) emit('error', text);
 
         for (const fn of statusListeners) {
-            try { fn({ state, text, engineId: currentEngineId }); } catch { }
+            try { fn({ state, text, progress, engineId: currentEngineId }); } catch { }
         }
     }
 
@@ -291,31 +291,17 @@ const EngineManager = (() => {
         return "[OCR Error]";
     }
 
-    function emitError(error) {
-        notifyStatus("error", error);
-    }
-
     return {
-        // Lifecycle
-        switchEngine,
-        runOCR,
-        // Preprocessing / Post-processing
-        preprocess,
-        postprocess,
-        // Error handling
-        handleError,
-        emitError,
-        // State
+        onReady, onLoading, onError, onStatusChange,
+        switchEngine, runOCR, notifyStatus, _notifyStatus: notifyStatus,
         isReady: () => isReady,
         getInfo: () => currentInfo,
-        getReadyStatus,
-        // Events
-        onStatusChange,
-        onReady(fn) { listeners.ready.push(fn); },
-        onLoading(fn) { listeners.loading.push(fn); },
-        onError(fn) { listeners.error.push(fn); },
-        // Internal notifier (used by setOCRStatus bridge only)
-        _notifyStatus: notifyStatus,
+        emitError: (err) => emit('error', err),
+        handleError: (err) => {
+            console.error("[ENGINE-ERROR]", err);
+            return "🔴 OCR ERROR";
+        },
+        STATUS // Export registry
     };
 
 })();
@@ -456,23 +442,31 @@ loadVoices();
 // Step 2: Wire EngineManager (passive listener)
 // Gold v3.1.1: Relocated EngineManager.onStatusChange to globalInitialize footer to ensure deterministic hydration.
 
-function setOCRStatus(state, text) {
-    // Step 4: Forward status to EngineManager
+function setOCRStatus(state, text, progress = null) {
+    // Step 4: Forward status to EngineManager (Internal State Tracking)
     if (window.EngineManager && typeof EngineManager._notifyStatus === 'function') {
-        EngineManager._notifyStatus(state, text);
+        EngineManager._notifyStatus(state, text, progress);
     }
 
     const ocrStatus = document.getElementById('ocr-status');
     if (!ocrStatus) return;
 
+    // Reset Progress Logic (Hardening v3.7)
+    if (progress === null || state === STATUS.READY || state === STATUS.ERROR) {
+        ocrStatus.style.removeProperty('--progress');
+        ocrStatus.removeAttribute('data-progress');
+    } else {
+        const pct = Math.round(progress * 100);
+        ocrStatus.style.setProperty('--progress', `${pct}%`);
+        ocrStatus.setAttribute('data-progress', 'true');
+        
+        // Dynamic Text Override
+        if (text && !text.includes('%') && !text.includes('/')) {
+            text = `${text} (${pct}%)`;
+        }
+    }
 
-
-
-    // PRIORITY LOGIC:
-    // Only force the generic "READY" green status if the specific state requested is 'ready'.
-    // This allows 'processing' (Multi-Pass steps) and 'loading' (percentages) 
-    // to override the generic ready state even if the instance is technically loaded.
-    if (state === 'ready') {
+    if (state === STATUS.READY) {
         ocrStatus.className = 'status-pill ready';
         ocrStatus.textContent = text || `🟢 ${EngineManager.getInfo().id?.toUpperCase() || 'OCR'} READY`;
     } else {
@@ -660,6 +654,8 @@ if (latestText) {
         }
     });
 }
+
+// End of file
 
 // ==========================================
 // 2. Window Capture
@@ -1090,6 +1086,9 @@ async function captureFrame(rect = null) {
             }
 
             try {
+                // Report slice progress (Gold v3.7)
+                setOCRStatus(STATUS.PROCESSING, `Processing (${i + 1}/${canvases.length})`, (i+1)/canvases.length);
+                
                 const result = await EngineManager.runOCR(clean);
                 inferenceResults.push(result);
             } catch (error) {
@@ -2183,6 +2182,17 @@ function initEventListeners() {
             closeMenu();
         }
     };
+
+    // 6. Warning Banner Handoff (Gold v3.7 Hardening)
+    // Ensures the warning banner is dismissed immediately upon user confirmation.
+    const banner = document.getElementById('startup-banner');
+    const dismissBanner = () => { if (banner) banner.classList.remove('active'); };
+
+    document.getElementById('banner-close')?.addEventListener('click', dismissBanner);
+    document.getElementById('banner-switch-default')?.addEventListener('click', () => {
+        dismissBanner();
+        // Fallback to tesseract logic is already handled by the button itself in app.js
+    });
 
     const subItemBtns = document.querySelectorAll('.menu-subitem-btn');
     subItemBtns?.forEach(btn => {

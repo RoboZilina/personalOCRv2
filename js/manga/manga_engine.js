@@ -69,12 +69,13 @@ export class MangaOCREngine {
      */
     async load() {
         if (this.isLoaded && this.encoderSession && this.decoderSession) return;
+        const S = window.EngineManager?.STATUS || { LOADING: 'loading', DOWNLOADING: 'downloading', READY: 'ready', WARMING: 'warming-up' };
 
         // Non-blocking integrity ping
         this.checkAssets();
         
         try {
-            this.reportStatus('loading', '🟡 MangaOCR: loading manifest…');
+            this.reportStatus(S.DOWNLOADING, '🟡 MangaOCR: downloading manifest…', 0.1);
             const manifestRes = await fetch(this.manifestUrl);
             const manifest = await manifestRes.json();
             
@@ -85,47 +86,42 @@ export class MangaOCREngine {
             const executionProviders = useWebGPU ? ['webgpu', 'wasm'] : ['wasm'];
 
             // Sequential Loading (Hybrid: Remote Priority for Models)
-            this.reportStatus('loading', '🟡 MangaOCR: loading configuration…');
+            this.reportStatus(S.DOWNLOADING, '🟡 MangaOCR: loading configuration…', 0.15);
             const [vocabRes, configRes, preprocRes] = await Promise.all([
                 fetch(modelBase + manifest.vocab.path),
                 fetch(modelBase + manifest.config.path),
                 fetch(modelBase + manifest.preprocessor.path)
             ]);
 
-            // Yield for UI paint
-            await new Promise(r => setTimeout(r, 0));
-            
-            // Load Encoder
-            this.reportStatus('loading', '🟡 MangaOCR: loading encoder…');
-            const encoderPath = manifest.encoder.remote_url || (modelBase + manifest.encoder.path);
-            this.encoderSession = await ort.InferenceSession.create(encoderPath, { executionProviders });
-            console.log(`[ENGINE] MangaOCR Encoder — Active Backend: ${this.encoderSession.executionProvider || 'unknown'}`);
-
-            // Yield for UI paint
-            await new Promise(r => setTimeout(r, 0));
-            
-            // Load Decoder
-            this.reportStatus('loading', '🟡 MangaOCR: loading decoder…');
-            const decoderPath = manifest.decoder.remote_url || (modelBase + manifest.decoder.path);
-            this.decoderSession = await ort.InferenceSession.create(decoderPath, { executionProviders });
-            console.log(`[ENGINE] MangaOCR Decoder — Active Backend: ${this.decoderSession.executionProvider || 'unknown'}`);
-            
             this.vocab = await vocabRes.json();
-
-            // Read token IDs from model config — never hardcode model-specific values
             const config = await configRes.json();
             this.BOS_TOKEN_ID = config.decoder_start_token_id ?? 2;
             this.EOS_TOKEN_ID = config.eos_token_id ?? 3;
-            console.debug(`[MANGA-DEBUG] Token IDs — BOS: ${this.BOS_TOKEN_ID}, EOS: ${this.EOS_TOKEN_ID}`);
-
+            
             // Read normalization stats from preprocessor config
             const preproc = await preprocRes.json();
             this.imageMean = preproc.image_mean ?? [0.5, 0.5, 0.5];
             this.imageStd  = preproc.image_std  ?? [0.5, 0.5, 0.5];
-            console.debug(`[MANGA-DEBUG] Normalization — mean: ${this.imageMean}, std: ${this.imageStd}`);
             
-            // Warm-up WebGPU Shaders (if active)
-            await this.warmUp();
+            // Load Encoder (Remote)
+            this.reportStatus(S.DOWNLOADING, '🟡 MangaOCR: downloading encoder…', 0.2);
+            const encoderPath = manifest.encoder.remote_url || (modelBase + manifest.encoder.path);
+            let encoderBuffer = await fetchWithProgress(
+                encoderPath,
+                (p) => this.reportStatus(S.DOWNLOADING, '🟡 MangaOCR: downloading encoder…', 0.2 + (p * 0.35))
+            );
+            this.encoderSession = await ort.InferenceSession.create(encoderBuffer, { executionProviders });
+            encoderBuffer = null;
+
+            // Load Decoder (Remote)
+            this.reportStatus(S.DOWNLOADING, '🟡 MangaOCR: downloading decoder…', 0.6);
+            const decoderPath = manifest.decoder.remote_url || (modelBase + manifest.decoder.path);
+            let decoderBuffer = await fetchWithProgress(
+                decoderPath,
+                (p) => this.reportStatus(S.DOWNLOADING, '🟡 MangaOCR: downloading decoder…', 0.6 + (p * 0.35))
+            );
+            this.decoderSession = await ort.InferenceSession.create(decoderBuffer, { executionProviders });
+            decoderBuffer = null;
 
             // Initialize optimization buffers (Patch v2.1.8)
             if (!this.decoderTokenBuffer) {
@@ -134,15 +130,14 @@ export class MangaOCREngine {
             if (!this.decoderLogitsBuffer) {
                 const vocabSize = Object.keys(this.vocab).length;
                 this.decoderLogitsBuffer = new Float32Array(vocabSize);
-                console.log('[ENGINE] MangaOCR decoder buffer reuse active');
             }
 
             this.isLoaded = true;
-            this.reportStatus('ready', '🟢 MangaOCR Ready');
+            this.reportStatus(S.READY, '🟢 MangaOCR: ready.');
         } catch (err) {
             console.error("[MANGA-ERROR] Engine Load Failed:", err);
             this.isLoaded = false;
-            this.reportStatus('error', '🔴 MangaOCR Load Failed');
+            this.reportStatus(S.ERROR, '🔴 MangaOCR Load Failed');
             throw err;
         }
     }
