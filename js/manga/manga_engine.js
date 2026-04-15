@@ -43,8 +43,8 @@ export class MangaOCREngine {
             { url: modelBase + 'vocab.json', type: 'local' },
             { url: modelBase + 'config.json', type: 'local' },
             { url: modelBase + 'preprocessor_config.json', type: 'local' },
-            { url: 'https://github.com/RoboZilina/personalOCR/releases/latest/download/encoder_model.onnx', type: 'remote' },
-            { url: 'https://github.com/RoboZilina/personalOCR/releases/latest/download/decoder_model.onnx', type: 'remote' }
+            { url: 'https://mangaocr.s3.eu-central-003.backblazeb2.com/encoder_model.onnx', type: 'remote' },
+            { url: 'https://pub-77a4ba72da6d4b9e892b6511ae694813.r2.dev/personalocr-assets/models/manga/decoder_model.onnx', type: 'remote' }
         ];
         
         try {

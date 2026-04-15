@@ -14,10 +14,11 @@ export class TesseractEngine {
     async checkAssets() {
         const localAssets = [
             './js/tesseract/worker.min.js',
+            './js/tesseract/tesseract-core.worker.js',
             './js/tesseract/tesseract-core.wasm.js'
         ];
         const remoteAssets = [
-            'https://github.com/RoboZilina/personalOCR/releases/latest/download/jpn.traineddata'
+            'https://pub-77a4ba72da6d4b9e892b6511ae694813.r2.dev/personalocr-assets/tesseract/jpn.traineddata'
         ];
         
         try {
@@ -50,13 +51,12 @@ export class TesseractEngine {
 
         try {
             // Hybrid Paths: High-res GitHub data + Stable UNPKG logic
-            const langPath = 'https://github.com/RoboZilina/personalOCR/releases/latest/download/';
             const useGzip = false;
             const actualLang = 'jpn';
 
             this.worker = await Tesseract.createWorker(actualLang, 1, {
                 langPath: 'https://pub-77a4ba72da6d4b9e892b6511ae694813.r2.dev/personalocr-assets/tesseract/',
-                workerPath: './js/tesseract/tesseract-core.worker.js',
+                workerPath: './js/tesseract/worker.min.js',
                 corePath: 'https://pub-77a4ba72da6d4b9e892b6511ae694813.r2.dev/personalocr-assets/tesseract/',
                 gzip: useGzip,
                 logger: m => {
