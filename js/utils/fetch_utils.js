@@ -22,6 +22,7 @@ export async function fetchWithProgress(url, onProgress) {
 
     const total = parseInt(contentLength, 10);
     let loaded = 0;
+    if (!response.body) return response.arrayBuffer();
     const reader = response.body.getReader();
     const chunks = [];
 

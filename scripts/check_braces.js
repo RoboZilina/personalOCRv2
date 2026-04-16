@@ -9,7 +9,7 @@ const IGNORE_PATTERNS = [
 ];
 
 const TARGET_FILES = [
-    'app.js',
+    'app.v38.js',
     'settings.js',
     'service-worker.js'
 ];

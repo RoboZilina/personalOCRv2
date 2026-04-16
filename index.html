@@ -2,17 +2,6 @@
 <html lang="ja">
 
 <head>
-    <script>
-    // Immediate Cache Surgery: Unregister stale service workers
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(regs => {
-        for (const r of regs) {
-            console.warn("[CACHE-SURGERY] Unregistering stale Service Worker:", r.active?.scriptURL);
-            r.unregister();
-        }
-      }).catch(console.error);
-    }
-    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Personal OCR — Master Dashboard</title>

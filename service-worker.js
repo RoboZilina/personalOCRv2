@@ -3,6 +3,7 @@ const CACHE_NAME = 'personalocr-v3.8.4-gold';
 const ASSETS = [
   '/',
   '/app.v38.js',
+  '/app.v38.js?v=gold_3.8.4',
   '/icon-192.png',
   '/icon-512.png',
   '/index.html',

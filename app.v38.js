@@ -240,6 +240,8 @@ const EngineManager = (() => {
     let currentEngineId = 'tesseract'; // Default starting point
     let currentEngine = null;
     let switchingLock = false;
+    let currentCapabilities = {};
+    let currentInfo = { id: 'tesseract', capabilities: {} };
 
     // Fixed Labels for Status Formatting
     const ENGINE_LABELS = {
@@ -421,7 +423,8 @@ const EngineManager = (() => {
 
     async function disposeAllEngines() {
         if (window.VNOCR_DEBUG) console.debug("[ENGINE] Purging engine cache...");
-        for (const [id, engine] of engineCache.entries()) {
+        for (const [id, meta] of engineMetadata.entries()) {
+            const engine = meta?.instance;
             if (engine && typeof engine.dispose === 'function') {
                 try {
                     await engine.dispose();
@@ -430,8 +433,8 @@ const EngineManager = (() => {
                     console.error(`Engine dispose error (${id}):`, err);
                 }
             }
+            engineMetadata.set(id, { instance: null, state: 'not_loaded', loadPromise: null });
         }
-        engineCache.clear();
         currentEngine = null;
         currentEngineId = null;
         isReady = false;
@@ -502,11 +505,12 @@ const EngineManager = (() => {
     }
 
     // Initialize Defaults
-    engineMetadata.set('tesseract', { instance: null, state: 'ready', loadPromise: null });
+    engineMetadata.set('tesseract', { instance: null, state: 'idle', loadPromise: null });
 
     return {
         onReady, onLoading, onError, onStatusChange,
         switchEngine, preloadCoreEngines, disposeAllEngines,
+        getOrLoadEngine,
         runOCR, preprocess, postprocess, notifyStatus, _notifyStatus: notifyStatus,
         isReady: () => isReady,
         getEngineMetadata: (id) => engineMetadata.get(id), // New state inspection
@@ -2325,8 +2329,8 @@ async function globalInitialize() {
         engineReady = false;
         updateCaptureButtonState();
     });
-    EngineManager.onStatusChange(({ state, text, progress, id }) => {
-        setOCRStatus(state, text, progress, id);
+    EngineManager.onStatusChange(({ state, text, progress, engineId }) => {
+        setOCRStatus(state, text, progress, engineId);
     });
 
     engineReady = EngineManager.isReady();
@@ -2390,7 +2394,7 @@ function initEventListeners() {
         speakLatestBtn.onclick = () => {
             const text = latestText?.textContent;
             if (text && text !== 'Waiting for capture...') {
-                speakText(text);
+                speak(text);
             }
         };
     }
@@ -2408,7 +2412,7 @@ function initEventListeners() {
             if (upscaleVal) upscaleVal.textContent = parseFloat(e.target.value).toFixed(1);
         };
         upscaleSlider.onchange = (e) => {
-            setSetting('upscale', parseFloat(e.target.value));
+            setSetting('upscaleFactor', parseFloat(e.target.value));
         };
     }
 

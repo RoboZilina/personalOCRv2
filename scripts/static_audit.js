@@ -75,12 +75,12 @@ UNWANTED_FILES.forEach(item => {
         });
     }
 
-    // 3. Check app.js for common Worker patterns (like export default { fetch })
-const appJsPath = path.join(projectRoot, 'app.js');
+    // 3. Check app.v38.js for common Worker patterns (like export default { fetch })
+const appJsPath = path.join(projectRoot, 'app.v38.js');
 if (fs.existsSync(appJsPath)) {
     const content = fs.readFileSync(appJsPath, 'utf8');
     if (content.includes('export default {') && content.includes('fetch')) {
-        console.error('❌ ERROR: app.js contains a Cloudflare Worker export pattern.');
+        console.error('❌ ERROR: app.v38.js contains a Cloudflare Worker export pattern.');
         errors++;
     }
 }

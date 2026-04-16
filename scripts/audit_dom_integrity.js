@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 const indexHtml = fs.readFileSync('index.html', 'utf8');
-const appJs = fs.readFileSync('app.js', 'utf8');
+const appJs = fs.readFileSync('app.v38.js', 'utf8');
 const settingsJs = fs.readFileSync('settings.js', 'utf8');
 
 // Extraction regex for IDs
