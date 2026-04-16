@@ -19,7 +19,8 @@ const defaultSettings = {
     paddleLineCount: 3,
     textAreaSize: "standard",      // "small", "standard", "large"
     textSize: "standard",          // "small", "standard", "large"
-    upscaleFactor: 2.0
+    upscaleFactor: 2.0,
+    skipPreloading: false
 };
 
 let currentSettings = { ...defaultSettings };

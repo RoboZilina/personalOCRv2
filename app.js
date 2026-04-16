@@ -2194,9 +2194,13 @@ async function globalInitialize() {
     await switchEngineModular(savedEngine);
 
     // 3. Background Optimization (Honest Startup Pass)
-    // Silently warm up the other core engine to enable instant hot-swapping.
-    // We AWAIT this now to ensure the system is stable before splash dismissal.
-    await EngineManager.preloadCoreEngines();
+    if (!getSetting('skipPreloading')) {
+        // Silently warm up the other core engine to enable instant hot-swapping.
+        // We AWAIT this now to ensure the system is stable before splash dismissal.
+        await EngineManager.preloadCoreEngines();
+    } else {
+        if (window.VNOCR_DEBUG) console.debug("[INIT] Lightweight Mode: Skipping background preloads.");
+    }
 
     // 3. Post-load Mode Restoration (Deterministic)
     const engineInfo = EngineManager.getInfo();
