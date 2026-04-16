@@ -636,3 +636,65 @@ body.light-theme .guide-card { background: #f1f5f9; border-color: #e2e8f0; }
 
 
 
+
+/* ========================================== */
+/* 10. MINIMALIST COLLAPSIBLE WARNINGS        */
+/* ========================================== */
+
+.warning-collapsible {
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.warning-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 700;
+}
+
+.warning-details {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
+    opacity: 0;
+    font-size: 11px;
+    color: var(--text-dim);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    padding-top: 4px;
+    margin-top: 4px;
+}
+
+.warning-collapsible.expanded .warning-details {
+    max-height: 300px;
+    opacity: 1;
+    padding-bottom: 8px;
+}
+
+.warning-toggle {
+    font-size: 10px;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-left: auto;
+}
+
+.warning-collapsible:not(.expanded) .warning-toggle::after { content: "View Details"; }
+.warning-collapsible.expanded .warning-toggle::after { content: "Hide Details"; }
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 4px 12px;
+    margin-top: 8px;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 4px;
+}
+
+.stats-label { color: var(--text-dim); font-size: 10px; }
+.stats-value { color: var(--text); font-weight: 600; font-size: 10px; }
+

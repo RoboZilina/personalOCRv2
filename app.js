@@ -463,7 +463,10 @@ async function switchEngineModular(id) {
         
         // 1) UI State Sync
         const mangaNote = document.getElementById('manga-note');
-        if (mangaNote) mangaNote.classList.toggle('visible', normalizedId === 'manga');
+        if (mangaNote) {
+            mangaNote.classList.toggle('visible', normalizedId === 'manga');
+            mangaNote.classList.remove('expanded'); // Always start collapsed (Minimalist Pass)
+        }
 
         const capturePreviewMenu = document.getElementById('menu-capture-preview');
         if (capturePreviewMenu) capturePreviewMenu.style.display = normalizedId === 'manga' ? 'none' : 'block';
@@ -2047,6 +2050,14 @@ function initEventListeners_Part2() {
 
     document.getElementById('banner-close')?.addEventListener('click', () => {
         document.getElementById('startup-banner')?.classList.remove('active');
+    });
+
+    // 6.5 Universal Collapsible Warning Handler
+    document.addEventListener('click', (e) => {
+        const collapsible = e.target.closest('.warning-collapsible');
+        if (collapsible) {
+            collapsible.classList.toggle('expanded');
+        }
     });
 }
 

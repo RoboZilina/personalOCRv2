@@ -51,8 +51,18 @@
                         </optgroup>
                         <option value="manga">MangaOCR (Japanese)</option>
                     </select>
-                    <div id="manga-note">
-                        ⚠️ <span class="manga-note-text">Best for Manga. Wide VN text may fail.</span>
+                    <div id="manga-note" class="warning-collapsible">
+                        <div class="warning-header">
+                            MangaOCR Warning <span class="warning-toggle"></span>
+                        </div>
+                        <div class="warning-details">
+                            High-precision Vision Transformer optimized for square comic panels. May struggle with horizontal game text boxes.
+                            <div class="stats-grid">
+                                <span class="stats-label">Download:</span> <span class="stats-value">~450 MB (VRAM intense)</span>
+                                <span class="stats-label">Setup:</span> <span class="stats-value">10-25s initialization</span>
+                                <span class="stats-label">Memory:</span> <span class="stats-value">~1.2 GB VRAM/RAM</span>
+                            </div>
+                        </div>
                     </div>
                     <select id="tts-voice-select" class="ui-select" title="TTS Voice" style="max-width: 150px;">
                         <option value="">🔇 TTS Off</option>
@@ -73,8 +83,18 @@
 
         <!-- STARTUP BANNER FOR PADDLEOCR -->
         <div id="startup-banner" class="startup-banner">
-            <div class="banner-text">
-                🚀 <strong>PaddleOCR Mode Active:</strong> This mode uses a powerful high-precision model.
+            <div class="warning-collapsible" style="flex: 1; margin-right: 20px;">
+                <div class="warning-header">
+                    PaddleOCR Mode Active <span class="warning-toggle"></span>
+                </div>
+                <div class="warning-details">
+                    Neural network optimized for horizontal dialogue. Requires WebGPU for best performance.
+                    <div class="stats-grid">
+                        <span class="stats-label">Download:</span> <span class="stats-value">~80 MB initial fetch</span>
+                        <span class="stats-label">Setup:</span> <span class="stats-value">2-5s cold start</span>
+                        <span class="stats-label">Memory:</span> <span class="stats-value">~200 MB usage</span>
+                    </div>
+                </div>
             </div>
             <div class="banner-actions">
                 <button id="banner-switch-default" class="btn">Switch to Default</button>
@@ -284,9 +304,18 @@
                 <h2 style="color: var(--panic)">PaddleOCR Warning</h2>
                 <p>Heavy Model Initialization</p>
             </div>
-            <div class="guide-card" style="margin-bottom: 20px;">
-                <p>This mode loads a large neural network (20–80 MB) and may use significant CPU/GPU resources.</p>
-                <p><strong>Note:</strong> On slower connections, the first load may take several seconds.</p>
+            <div class="warning-collapsible expanded" style="margin-bottom: 20px; border: 1px solid var(--border); padding: 12px; border-radius: 8px; background: rgba(0,0,0,0.2);">
+                <div class="warning-header">
+                    Heavy Model Initialization <span class="warning-toggle"></span>
+                </div>
+                <div class="warning-details">
+                    Loads a neural network for high-precision recognition. First load requires local model download and caching.
+                    <div class="stats-grid">
+                        <span class="stats-label">Download:</span> <span class="stats-value">~80 MB initial fetch</span>
+                        <span class="stats-label">Setup:</span> <span class="stats-value">2-5s cold start</span>
+                        <span class="stats-label">Memory:</span> <span class="stats-value">~200 MB usage</span>
+                    </div>
+                </div>
             </div>
             <div class="checkbox-group" style="margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
                 <input type="checkbox" id="heavy-warning-checkbox">
@@ -306,9 +335,18 @@
                 <h2 style="color: #ff9800">MangaOCR Warning</h2>
                 <p>Large Model Download</p>
             </div>
-            <div class="guide-card" style="margin-bottom: 20px;">
-                <p>This mode downloads a large Vision Transformer neural network <strong>(up to 450 MB)</strong> and is heavily optimized for reading <strong>perfectly square Manga panels</strong>. It may struggle with horizontal media interfaces.</p>
-                <p><strong>Note:</strong> Models are downloaded entirely on first use and permanently cached locally for instant offline loading in the future.</p>
+            <div class="warning-collapsible expanded" style="margin-bottom: 20px; border: 1px solid var(--border); padding: 12px; border-radius: 8px; background: rgba(0,0,0,0.2);">
+                <div class="warning-header">
+                    Large Model Download <span class="warning-toggle"></span>
+                </div>
+                <div class="warning-details">
+                    Vision Transformer optimized exclusively for square comic panels. Horizontal VN interfaces may yield poor results.
+                    <div class="stats-grid">
+                        <span class="stats-label">Download:</span> <span class="stats-value">~450 MB (VRAM intense)</span>
+                        <span class="stats-label">Setup:</span> <span class="stats-value">10-25s initialization</span>
+                        <span class="stats-label">Memory:</span> <span class="stats-value">~1.2 GB VRAM/RAM</span>
+                    </div>
+                </div>
             </div>
             <div class="checkbox-group" style="margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
                 <input type="checkbox" id="manga-warning-checkbox">
