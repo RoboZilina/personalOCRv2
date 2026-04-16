@@ -1,4 +1,4 @@
-const CACHE_NAME = 'personalocr-v3.8.4-gold';
+const CACHE_NAME = 'personalocr-v3.8.4-gold-patch1';
 
 const ASSETS = [
   '/',

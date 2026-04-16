@@ -1499,6 +1499,7 @@ function adaptiveThreshold(canvas, ctx, res, { windowDivisor, thresholdFactor, p
 }
 
 function applyPreprocessing(canvas, mode) {
+    if (!canvas || canvas.width === 0 || canvas.height === 0) return canvas;
     if (mode === 'raw') return lr_addPadding(canvas, 10);
     const scale = Math.max(1, Math.min(4, parseFloat(upscaleSlider?.value ?? '2')));
     canvas = lr_upscale(canvas, scale);
