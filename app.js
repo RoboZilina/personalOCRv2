@@ -365,7 +365,14 @@ const EngineManager = (() => {
 
     // Unified OCR entry point
     async function runOCR(canvas, options = {}) {
-        const engine = currentEngine;
+        // Gold v3.8: Support instance pinning for multi-slice stability
+        let engine = currentEngine;
+        
+        // If options is an engine instance (internal pin), use it directly
+        if (options && typeof options.recognize === 'function') {
+            engine = options;
+        }
+
         if (!engine || typeof engine.recognize !== 'function') {
             notifyStatus('error', 'No engine available');
             throw new Error('No engine available');
@@ -373,7 +380,7 @@ const EngineManager = (() => {
 
         try {
             notifyStatus('processing', 'Processing...');
-            const result = await engine.recognize(canvas, options);
+            const result = await engine.recognize(canvas, (typeof options === 'object' ? options : {}));
             return result;
         } catch (err) {
             notifyStatus('error', 'OCR failed');
@@ -425,6 +432,8 @@ const EngineManager = (() => {
         runOCR, notifyStatus, _notifyStatus: notifyStatus,
         isReady: () => isReady,
         getInfo: () => currentInfo,
+        getEngineInstance: () => currentEngine, // Added for pinning
+        getReadyStatus,
         emitError: (err) => emit('error', err),
         handleError: (err) => {
             console.error("[ENGINE-ERROR]", err);
@@ -566,36 +575,74 @@ loadVoices();
 // Step 2: Wire EngineManager (passive listener)
 // Gold v3.1.1: Relocated EngineManager.onStatusChange to globalInitialize footer to ensure deterministic hydration.
 
-function setOCRStatus(state, text, progress = null) {
-    // Step 4: Forward status to EngineManager (Internal State Tracking)
+// Progress Pill v2: Unified State Machine (Gold v3.8)
+let statusSettleTimer = null;
+let statusTransitionLock = false;
+
+/**
+ * High-fidelity status management for the Progress Pill v2.
+ * @param {string} state - The status category (ready, processing, loading, etc.)
+ * @param {string} text - The display string.
+ * @param {number|null} progress - 0.0 to 1.0 or null.
+ * @param {string|null} sourceId - The engine ID that sent this update.
+ */
+function setOCRStatus(state, text, progress = null, sourceId = null) {
+    // 1. Internal EngineManager Sync
     if (window.EngineManager && typeof EngineManager._notifyStatus === 'function') {
         EngineManager._notifyStatus(state, text, progress);
     }
 
     const ocrStatus = document.getElementById('ocr-status');
-    if (!ocrStatus) return;
+    const statusLabel = document.getElementById('status-text');
+    if (!ocrStatus || !statusLabel) return;
 
-    // Reset Progress Logic (Hardening v3.7)
-    if (progress === null || state === STATUS.READY || state === STATUS.ERROR) {
-        ocrStatus.style.removeProperty('--progress');
-        ocrStatus.removeAttribute('data-progress');
-    } else {
-        const pct = Math.round(progress * 100);
-        ocrStatus.style.setProperty('--progress', `${pct}%`);
-        ocrStatus.setAttribute('data-progress', 'true');
-
-        // Dynamic Text Override
-        if (text && !text.includes('%') && !text.includes('/')) {
-            text = `${text} (${pct}%)`;
-        }
+    // 2. Silent Preload Guard
+    // If update is from an engine that isn't the current target, discard unless it's an error.
+    const activeId = EngineManager.getInfo().id;
+    if (sourceId && sourceId !== activeId && state !== STATUS.ERROR) {
+        if (getSetting('debug')) console.debug(`[STATUS-DEBUG] Filtering silent preload status from ${sourceId}`);
+        return;
     }
 
+    // 3. Settle Logic: Prevent rapid-fire READY flickers
     if (state === STATUS.READY) {
-        ocrStatus.className = 'status-pill ready';
-        ocrStatus.textContent = text || `🟢 ${EngineManager.getInfo().id?.toUpperCase() || 'OCR'} READY`;
-    } else {
-        ocrStatus.className = `status-pill ${state}`;
-        ocrStatus.textContent = text;
+        if (statusSettleTimer) return; // Wait for the existing timer
+        statusSettleTimer = setTimeout(() => {
+            applyStatusStage(STATUS.READY, text || EngineManager.getReadyStatus(), null);
+            statusSettleTimer = null;
+        }, 120); // 120ms "Settle" window for absolute stability
+        return;
+    }
+
+    // If a non-ready status (processing/error) comes in, cancel any pending readiness
+    if (statusSettleTimer) {
+        clearTimeout(statusSettleTimer);
+        statusSettleTimer = null;
+    }
+
+    applyStatusStage(state, text, progress);
+
+    function applyStatusStage(s, t, p) {
+        // Progress Normalization
+        if (p === null || s === STATUS.READY || s === STATUS.ERROR) {
+            ocrStatus.style.removeProperty('--progress');
+        } else {
+            const pct = Math.round(p * 100);
+            ocrStatus.style.setProperty('--progress', `${pct}%`);
+            if (t && !t.includes('%') && !t.includes('/')) t = `${t} (${pct}%)`;
+        }
+
+        // Text Transition (Fading)
+        if (statusLabel.textContent !== t) {
+            statusLabel.classList.add('fading');
+            setTimeout(() => {
+                statusLabel.textContent = t;
+                statusLabel.classList.remove('fading');
+            }, 100); // Wait for fade-out, update, then fade-in via CSS
+        }
+
+        // Class State Mapping
+        ocrStatus.className = `status-pill ${s}`;
     }
 }
 
@@ -796,6 +843,10 @@ async function startCapture() {
         if (placeholder) placeholder.style.display = 'none';
         const hint = document.getElementById('selection-hint');
         if (hint) hint.classList.add('visible');
+
+        // Restore Auto-Capture Loop (Gold v3.8 Stability Pass)
+        if (autoCaptureTimer) clearInterval(autoCaptureTimer);
+        autoCaptureTimer = setInterval(checkAutoCapture, 500);
     } catch (err) {
         if (videoStream) { videoStream.getTracks().forEach(t => t.stop()); videoStream = null; }
     }
@@ -951,16 +1002,23 @@ function checkAutoCapture() {
     const pix = scoutCtx.getImageData(0, 0, 32, 32).data;
     const currentData = new Uint32Array(pix.buffer);
 
-    // 2. Only run comparison and stability triggers if we aren't already busy
-    if (!isProcessing && lastScoutData) {
+    // 2. Only run comparison and stability triggers if we aren't already busy AND engine is ready
+    // Hardening v3.8: Added EngineManager.isReady() guard to prevent captures during switching/loading.
+    if (!isProcessing && EngineManager.isReady() && lastScoutData) {
         let diffPixels = 0;
         for (let i = 0; i < currentData.length; i++) { if (currentData[i] !== lastScoutData[i]) diffPixels++; }
+        
         if (diffPixels > 10) {
             clearTimeout(stabilityTimer);
-            autoToggle.parentElement.classList.add('active');
+            if (autoToggle.parentElement) autoToggle.parentElement.classList.add('active');
+            
             stabilityTimer = setTimeout(() => {
-                autoToggle.parentElement.classList.remove('active');
-                captureFrame(selectionRect);
+                if (autoToggle?.parentElement) autoToggle.parentElement.classList.remove('active');
+                
+                // Re-verify conditions after 800ms delay
+                if (getSetting('autoCapture') && !isProcessing && EngineManager.isReady()) {
+                    captureFrame(selectionRect);
+                }
             }, 800);
         }
     }
@@ -1122,10 +1180,18 @@ async function captureFrame(rect = null) {
     // Hardening v3.4: Null-selection guard (Fixes denormalizeSelection TypeError)
     if (!rect && !window.selectionRect) return;
 
-    if (isProcessing) return; // Prevent overlapping cycles (Gold v3.1)
+    // Hardening v3.8: Combined readiness and processing lock
+    if (isProcessing || !EngineManager.isReady()) return;
+    
     isProcessing = true;
     const myGen = ++captureGeneration;
-    logTrace(`Capture started. Gen: ${myGen}`);
+    
+    // Engine Pinning: Lock current instance and ID to ensure consistency throughout the slice cycle
+    const pinnedEngine = EngineManager.getEngineInstance();
+    const pinnedInfo = EngineManager.getInfo();
+    const pinnedId = pinnedInfo.id;
+    
+    logTrace(`Capture started. Gen: ${myGen} | Engine: ${pinnedId}`);
 
     const vWidth = vnVideo.videoWidth, vHeight = vnVideo.videoHeight;
     const sel = denormalizeSelection(rect, vnVideo, selectionOverlay);
@@ -1136,16 +1202,14 @@ async function captureFrame(rect = null) {
     rawCropCanvas.width = cw_; rawCropCanvas.height = ch_;
     rawCropCanvas.getContext('2d').drawImage(vnVideo, cx_, cy_, cw_, ch_, 0, 0, cw_, ch_);
 
-    // 6. Logging for verification
-    // if (getSetting('debug')) console.log(`[VN-OCR] Crop Source: sx=${cx_}, sy=${cy_}, sw=${cw_}, sh=${ch_}`);
-
     EngineManager._notifyStatus('processing', '🟡 Processing...');
     await new Promise(r => setTimeout(r, 0)); // yield to browser for repaint
+    
     const mode = modeSelector.value;
-    const engine = EngineManager.getInfo().id;
+    
     try {
-        if (engine === 'tesseract' && mode === 'multi') {
-            performanceMetrics?.preprocess = 0; // Legacy ref
+        // Tesseract Multi-Pass Branch
+        if (pinnedId === 'tesseract' && mode === 'multi') {
             const preStart = performance.now();
             const canvases = applyTesseractPreprocessing(rawCropCanvas, mode);
             perfStats.preprocess = performance.now() - preStart;
@@ -1153,9 +1217,15 @@ async function captureFrame(rect = null) {
 
             // 1. First Pass: Early exit if result is highly confident and clean
             const infStart = performance.now();
-            const first = await EngineManager.runOCR(canvases[0], 'tesseract');
-            const firstDensity = scoreJapaneseDensity(first.text);
+            const first = await EngineManager.runOCR(canvases[0], pinnedEngine);
+            
+            // Generation Check (Critical for preventing UI ghosting)
+            if (captureGeneration !== myGen) {
+                canvases.forEach(c => { c.width = 0; c.height = 0; });
+                return;
+            }
 
+            const firstDensity = scoreJapaneseDensity(first.text);
             if (first.confidence > 85 && firstDensity > 5) {
                 addOCRResultToUI(first.text);
                 updateDebugThumb(canvases[0]);
@@ -1169,7 +1239,12 @@ async function captureFrame(rect = null) {
             results.push({ text: first.text, confidence: first.confidence });
             for (let i = 1; i < canvases.length; i++) {
                 setOCRStatus('processing', `Analyst: Pass ${i + 1}/5...`);
-                const r = await EngineManager.runOCR(canvases[i], 'tesseract');
+                // Pinning: Pass pinnedEngine to runOCR
+                const r = await EngineManager.runOCR(canvases[i], pinnedEngine);
+                if (captureGeneration !== myGen) {
+                    canvases.forEach(c => { c.width = 0; c.height = 0; });
+                    return;
+                }
                 results.push({ text: r.text, confidence: r.confidence });
             }
 
@@ -1185,23 +1260,23 @@ async function captureFrame(rect = null) {
             return;
         }
 
+        // Generic Pipeline Branch (Paddle / Manga / Tesseract Single)
         const lineCount = getSetting('paddleLineCount') || 1;
         const preStart = performance.now();
-        const canvases = await preprocessForEngine(EngineManager.getInfo().id, rawCropCanvas, mode, lineCount);
+        const canvases = await preprocessForEngine(pinnedId, rawCropCanvas, mode, lineCount);
         perfStats.preprocess = performance.now() - preStart;
-        logTrace(`Preprocessing complete. Slices: ${canvases.length}`);
-        if (getSetting('debug')) console.debug("[INFERENCE-DEBUG] total slices:", canvases.length);
+        
+        if (captureGeneration !== myGen) {
+            canvases.forEach(c => { c.width = 0; c.height = 0; });
+            return;
+        }
 
-        // 3. Unified Inference Loop (Polymorphic)
         const ocrLines = [];
         let totalConfidence = 0;
         let confidenceCount = 0;
-
-        const engineInfo = EngineManager.getInfo();
-
-        // 3. Sequential Inference Loop (Hardening v3.4: Fixes Session Mismatch)
         const inferenceResults = [];
         const infStart = performance.now();
+
         for (let i = 0; i < canvases.length; i++) {
             const clean = canvases[i];
             if (!clean.width || !clean.height) {
@@ -1209,22 +1284,17 @@ async function captureFrame(rect = null) {
                 continue;
             }
 
-            if (canvases.length > 1 && getSetting('debug')) {
-                console.debug(`[INFERENCE-DEBUG] processing slice ${i + 1}/${canvases.length}`);
-            }
-
-            // Debug Thumbnail (Modularized via metadata)
+            // Debug Thumbnail
             if (i === 0) {
-                if (engineInfo.capabilities.isMultiLine) updateDebugThumb(rawCropCanvas);
+                if (pinnedInfo.capabilities.isMultiLine) updateDebugThumb(rawCropCanvas);
                 else updateDebugThumb(canvases[0]);
             }
 
             try {
-                // Report slice progress (Gold v3.7)
-                if (window.VNOCR_DEBUG) console.debug(`[GEN ${myGen}] Processing slice ${i + 1}/${canvases.length}`);
                 setOCRStatus(STATUS.PROCESSING, `Processing (${i + 1}/${canvases.length})`, (i + 1) / canvases.length);
-
-                const result = await EngineManager.runOCR(clean);
+                // Pinning: Pass pinnedEngine instance to runOCR
+                const result = await EngineManager.runOCR(clean, pinnedEngine);
+                if (captureGeneration !== myGen) return;
                 inferenceResults.push(result);
             } catch (error) {
                 console.error(`[GEN ${myGen}] [INFERENCE-ERROR] Execution failed for slice:`, i, error);
@@ -1239,46 +1309,30 @@ async function captureFrame(rect = null) {
         inferenceResults.forEach(result => {
             if (!result) return;
             const { text, confidence } = result;
-
             if (confidence !== null) {
                 totalConfidence += confidence;
                 confidenceCount++;
             }
-
-            if (text && text.trim()) {
-                ocrLines.push(text.trim());
-            }
+            if (text && text.trim()) ocrLines.push(text.trim());
         });
 
         if (captureGeneration !== myGen) return;
 
-        // Modular Post-processing
+        // Post-processing
         const finalText = EngineManager.postprocess(ocrLines);
-
         const avgConfidence = confidenceCount > 0 ? (totalConfidence / confidenceCount) : null;
-        // if (avgConfidence !== null && getSetting('debug')) {
-        //     console.debug("[ENGINE-DEBUG] average confidence:", avgConfidence);
-        // }
 
-        // 4. Unified UI Update
         if (finalText) {
             addOCRResultToUI(finalText, avgConfidence);
             setOCRStatus('ready', '🟢 OCR Complete');
-            if (typeof updateLatestText === 'function') {
-                updateLatestText(finalText);
-            }
         } else {
             setOCRStatus('ready', '⚪ No text detected');
         }
         logTrace(`Capture Cycle Complete. Gen: ${myGen}`);
 
-        // 5. Explicit Memory Cleanup (Step 9 Hardening)
         canvases.forEach(c => {
             if (c && c !== rawCropCanvas) {
-                const ctx = c.getContext('2d');
-                if (ctx) ctx.clearRect(0, 0, c.width, c.height);
-                c.width = 0;
-                c.height = 0;
+                c.width = 0; c.height = 0;
             }
         });
     } catch (err) {
@@ -1286,27 +1340,19 @@ async function captureFrame(rect = null) {
         EngineManager.emitError(err);
     }
     finally {
-        // 6. Final Memory Hardening: Zero out the source crop
         if (rawCropCanvas) {
-            const ctx = rawCropCanvas.getContext('2d');
-            if (ctx) ctx.clearRect(0, 0, rawCropCanvas.width, rawCropCanvas.height);
-            rawCropCanvas.width = 0;
-            rawCropCanvas.height = 0;
+            rawCropCanvas.width = 0; rawCropCanvas.height = 0;
         }
 
         // Small cooldown to prevent rapid-fire re-triggering
         setTimeout(() => {
-            if (window.VNOCR_DEBUG) {
-                if (!isProcessing) console.warn(`[${new Date().toISOString()}] [CAPTURE] Double-release detected for Gen ${myGen}`);
-                console.debug(`[${new Date().toISOString()}] [CAPTURE] Lock released: Gen ${myGen}`);
-                logMemoryUsage("Post-Capture");
-                if (window.updatePerformanceStatus) window.updatePerformanceStatus();
+            if (captureGeneration === myGen) {
+                isProcessing = false;
+                if (EngineManager.isReady()) {
+                    setOCRStatus('ready', EngineManager.getReadyStatus());
+                }
+                updateCaptureButtonState();
             }
-            isProcessing = false;
-            if (EngineManager.isReady()) {
-                setOCRStatus('ready', EngineManager.getReadyStatus());
-            }
-            updateCaptureButtonState(); // UI Heartbeat Sync (Gold v3.1)
         }, 100);
     }
 }
@@ -2162,8 +2208,8 @@ async function globalInitialize() {
     applySettingsToUI();
 
     // Gold v3.1.1 Hardening: EngineManager Observers relocated to footer for absolute stability
-    EngineManager.onStatusChange(({ state, text }) => {
-        setOCRStatus(state, text);
+    EngineManager.onStatusChange(({ state, text, progress, id }) => {
+        setOCRStatus(state, text, progress, id);
     });
 
     // Service Worker with Universal Isolation Support
