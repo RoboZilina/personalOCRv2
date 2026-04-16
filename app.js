@@ -1985,10 +1985,11 @@ function initEventListeners_Part2() {
         // THE FIX: Persist the engine setting immediately so it isn't lost on the next UI sync
         setSetting('ocrEngine', 'paddle');
 
-        await switchEngineModular(`paddle_${count}`);
-
+        // Dismiss modal immediately for better UX feedback
         document.getElementById('paddle-modal').classList.remove('active');
         if (selectionRect) window.drawSelectionRect();
+
+        await switchEngineModular(`paddle_${count}`);
     });
 
     document.getElementById('paddle-cancel')?.addEventListener('click', () => {
@@ -2011,10 +2012,11 @@ function initEventListeners_Part2() {
         engineSelector.value = 'manga';
         setSetting('ocrEngine', 'manga');
 
-        await switchEngineModular('manga');
-
+        // Dismiss modal immediately for better UX feedback
         document.getElementById('manga-modal').classList.remove('active');
         if (selectionRect) window.drawSelectionRect();
+
+        await switchEngineModular('manga');
     });
 
     document.getElementById('manga-cancel')?.addEventListener('click', () => {
@@ -2039,11 +2041,11 @@ function initEventListeners_Part2() {
         }
 
         // 3. Trigger the actual engine switch to unload Paddle and load Tesseract
-        await switchEngineModular('tesseract');
-
-        // 4. Close banner and refresh visual guides
+        // Close banner immediately for better UX feedback
         document.getElementById('startup-banner')?.classList.remove('active');
         if (selectionRect) window.drawSelectionRect();
+
+        await switchEngineModular('tesseract');
     });
 
     document.getElementById('banner-nocall-checkbox')?.addEventListener('change', (e) => {
