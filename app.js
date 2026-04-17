@@ -958,7 +958,7 @@ async function preprocessForEngine(engineId, rawCanvas, mode, lineCount) {
 }
 
 
-if (modeSelector) {
+if (typeof modeSelector !== 'undefined' && modeSelector) {
     modeSelector.addEventListener('change', () => {
         applyUIToSettings();
         // if (getSetting('debug')) console.debug('[Mode Select] Mode updated:', modeSelector.value);
@@ -984,9 +984,9 @@ function speak(text) {
     window.speechSynthesis.speak(utterance);
 }
 
-if (speakLatestBtn) speakLatestBtn.onclick = () => { if (latestText) speak(latestText.textContent); };
+if (typeof speakLatestBtn !== 'undefined' && speakLatestBtn) speakLatestBtn.onclick = () => { if (latestText) speak(latestText.textContent); };
 
-if (historyContent) {
+if (typeof historyContent !== 'undefined' && historyContent) {
     historyContent.addEventListener('click', e => {
         const btn = e.target.closest('button');
         if (!btn) return;
@@ -1012,7 +1012,7 @@ if (historyContent) {
     });
 }
 
-if (latestText) {
+if (typeof latestText !== 'undefined' && latestText) {
     latestText.addEventListener('mouseup', async () => {
         if (!getSetting('autoCopy')) return;
         const sel = window.getSelection().toString().trim();
