@@ -672,6 +672,12 @@ async function switchEngineModular(id) {
         if (modeSelector) modeSelector.disabled = true;
 
         // 3) Trigger Lifecycle (EngineManager handles caching and warm-up)
+        if (id === 'paddle' || id === 'manga') {
+            freezeCaptureButton();
+        } else if (id === 'tesseract') {
+            unfreezeCaptureButton();
+        }
+
         const registryEntry = engines[normalizedId];
         if (!registryEntry) {
             throw new Error(`No engine factory for: ${normalizedId}`);
@@ -681,6 +687,9 @@ async function switchEngineModular(id) {
             ...registryEntry,
             id: normalizedId
         });
+
+        // Engine loaded successfully - enable Capture button
+        unfreezeCaptureButton();
 
         // Memory guard: evict heavy engines (MangaOCR ~1.2GB) when not active
         EngineManager.evictOtherEngines(id);
@@ -1101,6 +1110,20 @@ function stopCapture() {
     if (hint) hint.classList.remove('visible');
     selectWindowBtn.classList.remove('stop');
     selectWindowBtn.textContent = 'Select Window Source';
+}
+
+function freezeCaptureButton() {
+    if (captureButton) {
+        captureButton.disabled = true;
+        captureButton.classList.add('disabled');
+    }
+}
+
+function unfreezeCaptureButton() {
+    if (captureButton) {
+        captureButton.disabled = false;
+        captureButton.classList.remove('disabled');
+    }
 }
 
 // Event binding moved to initEventListeners()
