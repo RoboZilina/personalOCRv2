@@ -1,13 +1,24 @@
 export { fetchWithProgress } from '../utils/fetch_utils.js?v=gold_3.8.4';
 
+// Shared resources for zero-churn tensor conversion
+let sharedCanvas = null;
+let sharedCtx = null;
+let detInputBuffer = null;
+let recInputBuffer = null;
+
 // canvas: HTMLCanvasElement, inputSize: [H, W], normalize: { mean: number[], std: number[] }, outBuffer: Float32Array (optional)
 export function canvasToFloat32Tensor(canvas, inputSize, normalize, outBuffer) {
     if (!canvas || !inputSize || !normalize) return null;
     
     try {
         const [targetH, targetW] = inputSize;
-        
-        // ... (Canvas drawing logic omitted for brevity in preview, but kept in actual tool call) ...
+
+        // Lazy initialization of shared canvas
+        if (!sharedCanvas) {
+            sharedCanvas = document.createElement('canvas');
+            sharedCtx = sharedCanvas.getContext('2d', { willReadFrequently: true });
+        }
+
         sharedCanvas.width = targetW;
         sharedCanvas.height = targetH;
         sharedCtx.fillStyle = '#000000';

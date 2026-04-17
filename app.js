@@ -323,12 +323,11 @@ const EngineManager = (() => {
 
         // 2. Start Loading Lifecycle
         meta.state = 'loading';
-
-        // ATOMIC FIX: Microtask barrier to eliminate ultra-tight races
-        await Promise.resolve();
-
         const loadStartTime = performance.now();
-        meta.loadPromise = (async () => {
+
+        // ATOMIC FIX: Create and assign promise synchronously BEFORE any await
+        // This ensures concurrent callers see the loadPromise immediately
+        const loadPromise = (async () => {
             try {
                 const registryEntry = engines[id];
                 if (!registryEntry) throw new Error(`Unknown engine: ${id}`);
@@ -370,7 +369,7 @@ const EngineManager = (() => {
                 throw err;
             } finally {
                 meta.loadPromise = null; // Always clear promise in both success and error paths
-                
+
                 // Observability: log error transition with timing (gated by VNOCR_DEBUG)
                 // Note: Only log if we came from catch (meta.state === 'error')
                 if (meta.state === 'error') {
@@ -385,7 +384,10 @@ const EngineManager = (() => {
             }
         })();
 
-        return meta.loadPromise;
+        // ATOMIC FIX: Assign immediately so concurrent callers see it
+        meta.loadPromise = loadPromise;
+
+        return loadPromise;
     }
 
     async function _warmUpEngine(engine, id) {
