@@ -722,7 +722,7 @@ let stabilityTimer = null;
 function loadVoices() {
     voices = window.speechSynthesis.getVoices();
     const jaVoices = voices.filter(v => v.lang.startsWith('ja'));
-    if (ttsVoiceSelect) {
+    if (typeof ttsVoiceSelect !== 'undefined' && ttsVoiceSelect) {
         ttsVoiceSelect.innerHTML = '<option value="">🔇 TTS Off</option>';
         jaVoices.forEach((voice) => {
             const option = document.createElement('option');
