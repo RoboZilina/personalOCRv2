@@ -528,9 +528,9 @@ const EngineManager = (() => {
         let engine = currentEngine;
         let engineId = currentEngineId || 'tesseract';
         
-        // If options is an engine instance (internal pin), use it directly
-        if (options && typeof options.recognize === 'function') {
-            engine = options;
+        // If options contains engineInstance (internal pin), use it directly
+        if (options && options.engineInstance) {
+            engine = options.engineInstance;
         }
         
         // If options contains explicit engineId, use that for loading
@@ -1469,7 +1469,7 @@ async function captureFrame(rect = null) {
 
             // 1. First Pass: Early exit if result is highly confident and clean
             const infStart = performance.now();
-            const first = await EngineManager.runOCR(canvases[0], pinnedEngine);
+            const first = await EngineManager.runOCR(canvases[0], { engineInstance: pinnedEngine });
             
             // Generation Check (Critical for preventing UI ghosting)
             if (captureGeneration !== myGen) {
@@ -1494,7 +1494,7 @@ async function captureFrame(rect = null) {
             for (let i = 1; i < canvases.length; i++) {
                 setOCRStatus('processing', `Analyst: Pass ${i + 1}/5...`);
                 // Pinning: Pass pinnedEngine to runOCR
-                const r = await EngineManager.runOCR(canvases[i], pinnedEngine);
+                const r = await EngineManager.runOCR(canvases[i], { engineInstance: pinnedEngine });
                 if (captureGeneration !== myGen) {
                     canvases.forEach(c => { c.width = 0; c.height = 0; });
                     releaseLock();
@@ -1549,7 +1549,7 @@ async function captureFrame(rect = null) {
             try {
                 setOCRStatus(STATUS.PROCESSING, `Processing (${i + 1}/${canvases.length})`, (i + 1) / canvases.length);
                 // Pinning: Pass pinnedEngine instance to runOCR
-                const result = await EngineManager.runOCR(clean, pinnedEngine);
+                const result = await EngineManager.runOCR(clean, { engineInstance: pinnedEngine });
                 if (captureGeneration !== myGen) {
                     releaseLock();
                     canvases.forEach(c => { c.width = 0; c.height = 0; });

@@ -113,12 +113,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Normalize cache key: use pathname only (strip query params for consistent caching)
-  // This aligns with ASSETS list which now includes versioned URLs
-  const cacheKey = new Request(normalizeUrl(event.request.url), { method: 'GET' });
-
-  // Cache-First Strategy: Return cached version immediately if available,
-  // otherwise fetch from network and cache the response.
+  // Cache-First Strategy: Match exact URL (including version query params)
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
