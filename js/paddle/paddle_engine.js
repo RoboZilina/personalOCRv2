@@ -372,10 +372,9 @@ export class PaddleOCR {
             }
 
             // Memory Cleanup
-            feeds[this.recSession.inputNames[0]] = null;
             logits = null;
-            
-            return text;
+
+            return { text };
         } catch (err) {
             console.error("[ENGINE] PaddleOCR Inference Error:", err);
             return { text: '' };

@@ -310,8 +310,10 @@ const EngineManager = (() => {
      * Implements promise deduplication and background readiness.
      */
     async function getOrLoadEngine(id, isSilent = false) {
+        console.trace(`[ENGINE] getOrLoadEngine(${id})`);
+
         let meta = engineMetadata.get(id);
-        
+
         if (!meta) {
             meta = { instance: null, state: 'not_loaded', loadPromise: null };
             engineMetadata.set(id, meta);
