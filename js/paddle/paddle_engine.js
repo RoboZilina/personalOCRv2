@@ -21,16 +21,26 @@ export class PaddleOCR {
         this.normalize = { mean: [0.5, 0.5, 0.5], std: [0.5, 0.5, 0.5] };
         this.isLoaded = false;
         this.busy = false; // Hardening v3.4: Concurrency Lock
-        this.initPromise = this.load();
+        this.loadPromise = null; // Idempotent load guard
+        this._warmedUp = false; // Idempotent warm-up guard
 
         // Hardening Patch v2.5: Pre-allocated buffer for zero-churn recognition
         this.recognitionBuffer = null;
         this.recognitionBufferSize = 48 * 320 * 3;
     }
 
-    /** Interface-compliant initialization */
+    /** Interface-compliant initialization (Idempotent) */
     async load() {
-        return await this.loadModels();
+        if (this.isLoaded) return this;
+        if (this.loadPromise) return this.loadPromise;
+
+        this.loadPromise = (async () => {
+            await this.loadModels();
+            this.isLoaded = true;
+            return this;
+        })();
+
+        return this.loadPromise;
     }
 
     /**
@@ -157,6 +167,9 @@ export class PaddleOCR {
      * Forces the browser to compile shaders during load rather than during first run.
      */
     async warmUp() {
+        if (this._warmedUp) return;
+        this._warmedUp = true;
+
         if (!this.detSession || !this.recSession) return;
         
         try {
