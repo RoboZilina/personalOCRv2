@@ -1,9 +1,20 @@
 const fs = require('fs');
 const path = require('path');
 
-const indexHtml = fs.readFileSync('index.html', 'utf8');
-const appJs = fs.readFileSync('app.v38.js', 'utf8');
-const settingsJs = fs.readFileSync('settings.js', 'utf8');
+const projectRoot = path.resolve(__dirname, '..');
+
+function readFileSafe(filePath) {
+    const fullPath = path.join(projectRoot, filePath);
+    if (!fs.existsSync(fullPath)) {
+        console.error(`[AUDIT:ERROR] File not found: ${fullPath}`);
+        process.exit(1);
+    }
+    return fs.readFileSync(fullPath, 'utf8');
+}
+
+const indexHtml = readFileSafe('index.html');
+const appJs = readFileSafe('app.js');
+const settingsJs = readFileSafe('settings.js');
 
 // Extraction regex for IDs
 // Matches: getElementById('...') or querySelector('#...')

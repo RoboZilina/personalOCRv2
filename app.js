@@ -5,9 +5,17 @@ const logTrace = (msg) => { if (window.VNOCR_DEBUG) console.log(`[TRACE] ${msg}`
 /**
  * Diagnostics: Memory Usage Trace (Gold v3.8)
  * Leverages performance.memory (Chromium) to audit heap pressure during ML inference.
+ * Rate-limited to prevent console flooding during high-frequency operations.
  */
+let lastMemoryLog = 0;
+const MEMORY_LOG_THROTTLE_MS = 1000; // Max 1 log per second
+
 const logMemoryUsage = (context = "") => {
     if (!window.VNOCR_DEBUG) return;
+    const now = Date.now();
+    if (now - lastMemoryLog < MEMORY_LOG_THROTTLE_MS) return;
+    lastMemoryLog = now;
+    
     const stats = getMemoryStats();
     if (stats) {
         console.debug(`[MEMORY] ${context} Used: ${stats.used}MB | Total: ${stats.total}MB | Limit: ${stats.limit}MB`);
@@ -16,13 +24,19 @@ const logMemoryUsage = (context = "") => {
 
 const getMemoryStats = () => {
     try {
-        if (typeof performance !== 'undefined' && performance.memory) {
+        if (typeof performance !== 'undefined' && performance.memory && 
+            typeof performance.memory.usedJSHeapSize === 'number' &&
+            typeof performance.memory.totalJSHeapSize === 'number' &&
+            typeof performance.memory.jsHeapSizeLimit === 'number') {
             const { usedJSHeapSize, totalJSHeapSize, jsHeapSizeLimit } = performance.memory;
-            return {
-                used: parseFloat((usedJSHeapSize / (1024 * 1024)).toFixed(1)),
-                total: parseFloat((totalJSHeapSize / (1024 * 1024)).toFixed(1)),
-                limit: parseFloat((jsHeapSizeLimit / (1024 * 1024)).toFixed(1))
-            };
+            // Guard against zero or negative values
+            if (usedJSHeapSize >= 0 && totalJSHeapSize > 0 && jsHeapSizeLimit > 0) {
+                return {
+                    used: parseFloat((usedJSHeapSize / (1024 * 1024)).toFixed(1)),
+                    total: parseFloat((totalJSHeapSize / (1024 * 1024)).toFixed(1)),
+                    limit: parseFloat((jsHeapSizeLimit / (1024 * 1024)).toFixed(1))
+                };
+            }
         }
     } catch (e) {
         // Silently fail in environments without performance.memory
@@ -101,14 +115,21 @@ const splashHints = [
     "For issues, use the Contact form. Lite version available."
 ];
 
+let splashHintInterval = null;
+
 function startSplashHintRotation() {
     const hintEl = document.getElementById("splash-hint");
     if (!hintEl) return;
+    
+    // Clear any existing interval to prevent duplicates
+    if (splashHintInterval) {
+        clearInterval(splashHintInterval);
+    }
 
     let idx = 0;
     hintEl.textContent = splashHints[idx];
 
-    setInterval(() => {
+    splashHintInterval = setInterval(() => {
         idx = (idx + 1) % splashHints.length;
         hintEl.textContent = splashHints[idx];
     }, 3500); // 3.5 seconds
@@ -440,23 +461,49 @@ const EngineManager = (() => {
     async function runOCR(canvas, options = {}) {
         // Gold v3.8: Support instance pinning for multi-slice stability
         let engine = currentEngine;
+        let engineId = currentEngineId || 'tesseract';
         
         // If options is an engine instance (internal pin), use it directly
         if (options && typeof options.recognize === 'function') {
             engine = options;
         }
+        
+        // If options contains explicit engineId, use that for loading
+        if (options && typeof options.engineId === 'string') {
+            engineId = options.engineId;
+        }
+
+        // Auto-recovery: if no engine loaded, try to load the target engine
+        if (!engine || typeof engine.recognize !== 'function') {
+            if (window.VNOCR_DEBUG) console.debug(`[ENGINE] runOCR: Engine not ready, attempting auto-load for ${engineId}`);
+            try {
+                // Check if switching is in progress to avoid race conditions
+                if (switchingLock) {
+                    throw new Error('Engine switch in progress - please retry');
+                }
+                engine = await getOrLoadEngine(engineId);
+                // Update current engine if we're loading the current one
+                if (engineId === currentEngineId) {
+                    currentEngine = engine;
+                }
+            } catch (loadErr) {
+                console.error(`[ENGINE] Auto-load failed for ${engineId}:`, loadErr);
+                notifyStatus(STATUS.ERROR, `Load failed: ${loadErr.message}`, null, engineId);
+                throw new Error(`Engine load failed: ${loadErr.message}`);
+            }
+        }
 
         if (!engine || typeof engine.recognize !== 'function') {
-            notifyStatus('error', 'No engine available');
+            notifyStatus(STATUS.ERROR, 'No engine available', null, engineId);
             throw new Error('No engine available');
         }
 
         try {
-            notifyStatus('processing', 'Processing...');
+            notifyStatus(STATUS.PROCESSING, '🟡 Processing...', null, engineId);
             const result = await engine.recognize(canvas, (typeof options === 'object' ? options : {}));
             return result;
         } catch (err) {
-            notifyStatus('error', 'OCR failed');
+            notifyStatus(STATUS.ERROR, 'OCR failed', null, engineId);
             throw err;
         }
     }
@@ -682,8 +729,9 @@ function setOCRStatus(state, text, progress = null, sourceId = null) {
 
     // 2. Silent Preload Guard
     // If update is from an engine that isn't the current target, discard unless it's an error.
+    // Only filter if sourceId is explicitly provided (defined) and different from activeId.
     const activeId = EngineManager.getInfo().id;
-    if (sourceId && sourceId !== activeId && state !== STATUS.ERROR) {
+    if (typeof sourceId === 'string' && sourceId !== activeId && state !== STATUS.ERROR) {
         if (getSetting('debug')) console.debug(`[STATUS-DEBUG] Filtering silent preload status from ${sourceId}`);
         return;
     }
@@ -1319,7 +1367,7 @@ async function captureFrame(rect = null) {
     rawCropCanvas.width = cw_; rawCropCanvas.height = ch_;
     rawCropCanvas.getContext('2d').drawImage(vnVideo, cx_, cy_, cw_, ch_, 0, 0, cw_, ch_);
 
-    EngineManager._notifyStatus('processing', '🟡 Processing...');
+    EngineManager._notifyStatus(STATUS.PROCESSING, '🟡 Processing...', null, pinnedId);
     await new Promise(r => setTimeout(r, 0)); // yield to browser for repaint
     
     const mode = modeSelector.value;
@@ -2189,6 +2237,12 @@ function dismissSplashScreen() {
     const splash = document.getElementById('startup-splash');
     if (!splash || splash.dataset.dismissed) return;
 
+    // Clear splash hint interval to prevent orphaned timers
+    if (splashHintInterval) {
+        clearInterval(splashHintInterval);
+        splashHintInterval = null;
+    }
+
     // Set persistence flag immediately to prevent double-dismiss or fail-safe triggers
     splash.dataset.dismissed = "1";
 
@@ -2276,6 +2330,9 @@ async function globalInitialize() {
     // 3. UI Integrity Setup
     initHelpModal();
     initSettings();
+    
+    // Start splash hint rotation after DOM is ready
+    startSplashHintRotation();
     
     if (typeof updatePerformanceStatus === 'function') {
         updatePerformanceStatus();

@@ -2,12 +2,12 @@ const CACHE_NAME = 'personalocr-v3.8.4-gold-patch1';
 
 const ASSETS = [
   '/',
-  '/app.js',
+  '/app.js?v=3.8.4',
   '/index.html',
   '/icon-192.png',
   '/icon-512.png',
-  '/js/manga/manga_engine.js',
-  '/js/onnx/onnx_support.js',
+  '/js/manga/manga_engine.js?v=3.8.4',
+  '/js/onnx/onnx_support.js?v=3.8.4',
   '/js/onnx/ort-wasm-simd-threaded.jsep.mjs',
   '/js/onnx/ort-wasm-simd-threaded.jsep.wasm',
   '/js/onnx/ort-wasm-simd-threaded.wasm',
@@ -15,9 +15,9 @@ const ASSETS = [
   '/js/onnx/ort-wasm-threaded.wasm',
   '/js/onnx/ort-wasm.wasm',
   '/js/onnx/ort.min.js',
-  '/js/paddle/paddle_core.js',
-  '/js/paddle/paddle_engine.js',
-  '/js/tesseract/tesseract_engine.js',
+  '/js/paddle/paddle_core.js?v=gold_3.8.4',
+  '/js/paddle/paddle_engine.js?v=3.8.4',
+  '/js/tesseract/tesseract_engine.js?v=3.8.4',
   '/js/tesseract/worker.min.js',
   '/js/tesseract/tesseract.min.js',
   '/js/tesseract/core/tesseract-core.wasm',
@@ -28,7 +28,7 @@ const ASSETS = [
   '/js/tesseract/core/tesseract-core-simd.wasm.js',
   '/js/tesseract/core/tesseract-core-simd-lstm.wasm',
   '/js/tesseract/core/tesseract-core-simd-lstm.wasm.js',
-  '/js/utils/fetch_utils.js',
+  '/js/utils/fetch_utils.js?v=3.8.4',
   '/manifest.json',
   '/models/manga/config.json',
   '/models/manga/manifest.json',
@@ -36,8 +36,8 @@ const ASSETS = [
   '/models/manga/vocab.json',
   '/models/paddle/japan_dict.txt',
   '/models/paddle/manifest.json',
-  '/settings.js',
-  '/styles.css'
+  '/settings.js?v=3.8.4',
+  '/styles.css?v=3.8.4'
 ];
 
 // 1. Installs Assets (Cache-First)
@@ -77,12 +77,12 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Use pathname-only as cache key to prevent cross-origin cache issues
-  // Query params (like ?v=3.8.4) are for cache-busting only
-  const cacheKey = url.pathname;
+  // Normalize cache key: use pathname only (strip query params for consistent caching)
+  // This aligns with ASSETS list which now includes versioned URLs
+  const cacheKey = new Request(url.pathname, { method: 'GET' });
 
   // Cache-First Strategy: Return cached version immediately if available,
-  // otherwise fetch from network and cache the response
+  // otherwise fetch from network and cache the response.
   event.respondWith(
     caches.match(cacheKey).then((cachedResponse) => {
       if (cachedResponse) {
@@ -94,14 +94,15 @@ self.addEventListener('fetch', (event) => {
         if (networkResponse && networkResponse.status === 200) {
           const cache = await caches.open(CACHE_NAME);
           // Must clone before reading/returning the response
+          // Use normalized pathname as key (consistent with ASSETS)
           await cache.put(cacheKey, networkResponse.clone());
         }
         return networkResponse;
       }).catch(async () => {
-        // Network failed: try to find any cached version (ignoring query params)
-        const pathnameMatch = await caches.match(event.request, { ignoreSearch: true });
-        if (pathnameMatch) {
-          return pathnameMatch;
+        // Network failed: try to find any cached version
+        const fallbackMatch = await caches.match(cacheKey);
+        if (fallbackMatch) {
+          return fallbackMatch;
         }
         // Return a minimal offline response for navigation requests
         if (event.request.mode === 'navigate') {

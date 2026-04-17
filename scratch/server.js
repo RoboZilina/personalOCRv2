@@ -41,11 +41,22 @@ const server = http.createServer((req, res) => {
     // Remove any query parameters for file lookup
     const cleanPath = requestedPath.split('?')[0];
     
+    // Reject paths with null bytes (suspicious)
+    if (cleanPath.includes('\0')) {
+        res.writeHead(400);
+        res.end('400 Bad Request');
+        return;
+    }
+    
     // Normalize the path and ensure it's within project root
     const filePath = path.normalize(path.join(PROJECT_ROOT, cleanPath));
     
-    // Security check: ensure file is within project root
-    if (!filePath.startsWith(PROJECT_ROOT)) {
+    // Security check: use path.relative to robustly detect traversal attempts
+    // This works correctly on Windows (case-insensitive) and handles edge cases
+    const relativePath = path.relative(PROJECT_ROOT, filePath);
+    const isPathSafe = !relativePath.startsWith('..') && !path.isAbsolute(relativePath);
+    
+    if (!isPathSafe) {
         res.writeHead(403);
         res.end('403 Forbidden');
         return;
