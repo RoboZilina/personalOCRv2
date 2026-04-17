@@ -456,6 +456,27 @@
     </div>
     <div id="menu-backdrop" class="menu-backdrop"></div>
 
+    <!-- Engine Cleanup Banner -->
+    <div id="engineCleanupBanner" class="hidden">
+        <span>Unused OCR engines are loaded. Free memory?</span>
+        <button id="purgePaddleBtn">Purge Paddle</button>
+        <button id="purgeMangaBtn">Purge Manga</button>
+        <button id="dismissCleanupBanner">Dismiss</button>
+    </div>
+    <style>
+        #engineCleanupBanner {
+            background: #222;
+            color: #eee;
+            padding: 8px;
+            border-radius: 6px;
+            margin: 8px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .hidden { display: none; }
+    </style>
+
     <!-- Scripts at the end of body -->
     <script src="./js/onnx/ort.min.js"></script>
     <script src="./js/tesseract/tesseract.min.js"></script>

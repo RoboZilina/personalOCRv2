@@ -146,7 +146,7 @@ function startSplashHintRotation() {
 
 // DOM Elements
 // DOM Elements (Identified as Gold v3.1.1 Lifecycle Nodes)
-let selectWindowBtn, vnVideo, selectionOverlay, historyContent, ttsVoiceSelect, speakLatestBtn, latestText, ocrStatus, refreshOcrBtn, clearHistoryBtn, engineSelector, modeSelector, autoToggle, autoCaptureBtn, upscaleSlider, upscaleVal, perfIcon, perfInfo, menuPurge, menuBtn, sideMenu, menuBackdrop, menuInstall, menuGuide, menuContact, menuReset;
+let selectWindowBtn, vnVideo, selectionOverlay, historyContent, ttsVoiceSelect, speakLatestBtn, latestText, ocrStatus, refreshOcrBtn, clearHistoryBtn, engineSelector, modeSelector, autoToggle, autoCaptureBtn, upscaleSlider, upscaleVal, perfIcon, perfInfo, menuPurge, menuBtn, sideMenu, menuBackdrop, menuInstall, menuGuide, menuContact, menuReset, captureButton;
 
 // === Throttling & Readiness State (Patch v3.1 Gold) ===
 let captureLocked = false;
@@ -1269,6 +1269,13 @@ function unfreezeCaptureButton() {
         captureButton.disabled = false;
         captureButton.classList.remove('disabled');
     }
+}
+
+function showEngineCleanupBanner() {
+    document.getElementById('engineCleanupBanner').classList.remove('hidden');
+}
+function hideEngineCleanupBanner() {
+    document.getElementById('engineCleanupBanner').classList.add('hidden');
 }
 
 // Event binding moved to initEventListeners()
@@ -2583,6 +2590,7 @@ async function globalInitialize() {
     latestText = document.getElementById('latest-text');
     ocrStatus = document.getElementById('ocr-status');
     refreshOcrBtn = document.getElementById('refresh-ocr-btn');
+    captureButton = refreshOcrBtn; // Alias for freeze/unfreeze functions
     clearHistoryBtn = document.getElementById('clear-history-btn');
     engineSelector = document.getElementById('model-selector');
     modeSelector = document.getElementById('mode-selector');
@@ -2646,6 +2654,17 @@ async function globalInitialize() {
         }
 
         applySettingsToUI();
+
+        // Step 4b: Show cleanup banner if unused engines are loaded
+        const currentEngineId = EngineManager.getInfo?.()?.id;
+        const paddleMeta = EngineManager.getEngineMetadata?.('paddle');
+        const mangaMeta = EngineManager.getEngineMetadata?.('manga');
+        if (paddleMeta?.state === 'ready' && currentEngineId !== 'paddle') {
+            showEngineCleanupBanner();
+        }
+        if (mangaMeta?.state === 'ready' && currentEngineId !== 'manga') {
+            showEngineCleanupBanner();
+        }
 
         // Step 5: History Loading (Restore context)
         if (historyContent) {
@@ -2841,6 +2860,19 @@ function initEventListeners() {
             closeMenu();
         }
     };
+
+    // Engine Cleanup Banner Buttons
+    document.getElementById('purgePaddleBtn')?.addEventListener('click', () => {
+        EngineManager.disposeEngine?.('paddle');
+        hideEngineCleanupBanner();
+    });
+    document.getElementById('purgeMangaBtn')?.addEventListener('click', () => {
+        EngineManager.disposeEngine?.('manga');
+        hideEngineCleanupBanner();
+    });
+    document.getElementById('dismissCleanupBanner')?.addEventListener('click', () => {
+        hideEngineCleanupBanner();
+    });
 
     // 6. Sub-Menu Quick Settings
     const subItemBtns = document.querySelectorAll('.menu-subitem-btn');
