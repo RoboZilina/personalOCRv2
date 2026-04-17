@@ -1,7 +1,7 @@
 {
   "encoder": {
     "path": "encoder_model.onnx",
-    "remote_url": "https://mangaocr.s3.eu-central-003.backblazeb2.com/encoder_model.onnx"
+    "remote_url": "https://pub-77a4ba72da6d4b9e892b6511ae694813.r2.dev/models/manga/encoder_model.onnx"
   },
   "decoder": {
     "path": "decoder_model.onnx",
