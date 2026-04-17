@@ -163,9 +163,11 @@ setTimeout(() => {
     if (splash && !splash.dataset.dismissed) {
         console.warn("[INIT-FAILSAFE] 30s Safety timeout triggered. Standard initialization exceeded expected window.");
         if (typeof dismissSplashScreen === 'function') dismissSplashScreen();
-        else {
+        } else {
             splash.style.transition = 'opacity 0.5s ease';
             splash.style.opacity = '0';
+            // Ensure interval is cleared if dismissSplashScreen isn't present
+            if (splashHintInterval) { clearInterval(splashHintInterval); splashHintInterval = null; }
             setTimeout(() => splash.remove(), 500);
         }
     }
@@ -248,6 +250,7 @@ const engines = {
 // Central source of truth for engine lifecycle and identity.
 // ============================
 
+/* eslint-disable no-unused-expressions */
 const EngineManager = (() => {
 
     // Internal State Machine (Gold v3.8 Compliance)
@@ -592,8 +595,7 @@ const EngineManager = (() => {
         handleError: (err) => {
             console.error("[ENGINE-ERROR]", err);
             return "🔴 OCR ERROR";
-        },
-        STATUS // Export registry
+        }
     };
 
 })();
@@ -669,9 +671,13 @@ async function switchEngineModular(id) {
         setOCRStatus(STATUS.ERROR, `🔴 ${errorMsg}`);
         if (engineSelector) engineSelector.disabled = false;
         if (modeSelector) modeSelector.disabled = false;
+        throw err;
     }
 }
 
+// Expose to global scope for API consumers
+window.switchEngine = switchEngineModular;
+window.switchEngineModular = switchEngineModular;
 
 // Phase 5: PWA Install Management (Fixed duplication)
 let deferredPrompt = null;
@@ -987,8 +993,8 @@ if (historyContent) {
         if (action === 'speak') speak(textSpan.textContent);
         if (action === 'copy') {
             navigator.clipboard.writeText(textSpan.textContent).catch(() => { });
-            btn.innerHTML = '✅';
-            setTimeout(() => btn.innerHTML = '📋', 1000);
+            btn.textContent = '✅';
+            setTimeout(() => btn.textContent = '📋', 1000);
         }
     });
     historyContent.addEventListener('mouseup', () => {
@@ -1424,6 +1430,7 @@ async function captureFrame(rect = null) {
             // Generation Check (Critical for preventing UI ghosting)
             if (captureGeneration !== myGen) {
                 canvases.forEach(c => { c.width = 0; c.height = 0; });
+                releaseLock();
                 return;
             }
 
@@ -1434,6 +1441,7 @@ async function captureFrame(rect = null) {
                 perfStats.inference = performance.now() - infStart;
                 canvases.forEach(c => { c.width = 0; c.height = 0; });
                 if (window.updatePerformanceStatus) window.updatePerformanceStatus();
+                releaseLock();
                 return;
             }
 
@@ -1445,6 +1453,7 @@ async function captureFrame(rect = null) {
                 const r = await EngineManager.runOCR(canvases[i], pinnedEngine);
                 if (captureGeneration !== myGen) {
                     canvases.forEach(c => { c.width = 0; c.height = 0; });
+                    releaseLock();
                     return;
                 }
                 results.push({ text: r.text, confidence: r.confidence });
@@ -1470,6 +1479,7 @@ async function captureFrame(rect = null) {
         
         if (captureGeneration !== myGen) {
             canvases.forEach(c => { c.width = 0; c.height = 0; });
+            releaseLock();
             return;
         }
 
@@ -1546,11 +1556,11 @@ async function captureFrame(rect = null) {
             rawCropCanvas.width = 0; rawCropCanvas.height = 0;
         }
 
-        // Small cooldown to prevent rapid-fire re-triggering
+        // Always release the lock synchronously to prevent race conditions
+        releaseLock();
+
+        // Small cooldown to prevent rapid-fire re-triggering - UI updates only
         setTimeout(() => {
-            // Always release the lock for this generation
-            releaseLock();
-            
             // Only update UI if this generation is still current
             if (captureGeneration === myGen) {
                 if (EngineManager.isReady()) {
@@ -2620,7 +2630,7 @@ window.VNOCR = {
     isReady: EngineManager.isReady,
     drawSelectionRect: window.drawSelectionRect,
     captureFrame: window.captureFrame,
-    switchEngine: window.switchEngine
+    switchEngine: switchEngineModular
 };
 
 // Gold v3.1 Hardening: Absolute Hydration Safety
