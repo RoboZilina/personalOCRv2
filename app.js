@@ -2522,6 +2522,14 @@ async function globalInitialize() {
             }).catch(e => console.warn('SW registration failed:', e));
         }
     }
+
+    // TEMPORARY FAILSAFE: force splash dismissal after 3 seconds
+    setTimeout(() => {
+        console.warn("Failsafe: forcing splash dismissal");
+        const splash = document.getElementById('startup-splash');
+        if (splash) splash.classList.remove('active');
+        document.body.classList.remove('loading-locked');
+    }, 3000);
 }
 
 /** 6.6 UI Interaction Registry (Hydration Safety) */
