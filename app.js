@@ -159,18 +159,14 @@ startSplashHintRotation();
 
 setTimeout(() => {
     const splash = document.getElementById('startup-splash');
-    // Pure JS Truth Flag: Only trigger if the splash hasn't been dismissed by the main logic
-    if (splash && !splash.dataset.dismissed) {
+    if (!splash) return;
+    
+    // Only trigger if the splash hasn't been dismissed by the main logic
+    if (!splash.dataset.dismissed) {
         console.warn("[INIT-FAILSAFE] 30s Safety timeout triggered. Standard initialization exceeded expected window.");
         if (typeof dismissSplashScreen === 'function') dismissSplashScreen();
-        } else {
-            splash.style.transition = 'opacity 0.5s ease';
-            splash.style.opacity = '0';
-            // Ensure interval is cleared if dismissSplashScreen isn't present
-            if (splashHintInterval) { clearInterval(splashHintInterval); splashHintInterval = null; }
-            setTimeout(() => splash.remove(), 500);
-        }
     }
+    // If dismissed==true, already removed — do nothing
 }, 30000);
 
 function updateCaptureButtonState() {
@@ -354,7 +350,6 @@ const EngineManager = (() => {
 
                 meta.instance = instance;
                 meta.state = 'ready';
-                meta.loadPromise = null; // Clear promise once resolved
                 
                 // Observability: log successful load completion (gated by VNOCR_DEBUG)
                 const loadDuration = Math.round(performance.now() - loadStartTime);
@@ -369,19 +364,21 @@ const EngineManager = (() => {
                 return instance;
             } catch (err) {
                 meta.state = 'error';
-                meta.loadPromise = null;
+                throw err;
+            } finally {
+                meta.loadPromise = null; // Always clear promise in both success and error paths
                 
                 // Observability: log error transition with timing (gated by VNOCR_DEBUG)
-                const loadDuration = Math.round(performance.now() - loadStartTime);
-                if (window.VNOCR_DEBUG) {
-                    console.warn(`[ENGINE-METRIC] ${id} failed after ${loadDuration}ms:`, err.message);
+                // Note: Only log if we came from catch (meta.state === 'error')
+                if (meta.state === 'error') {
+                    const loadDuration = Math.round(performance.now() - loadStartTime);
+                    if (window.VNOCR_DEBUG) {
+                        console.warn(`[ENGINE-METRIC] ${id} failed after ${loadDuration}ms:`, err?.message);
+                    }
+                    if (window.VNOCR_TELEMETRY && typeof window.VNOCR_TELEMETRY === 'function') {
+                        window.VNOCR_TELEMETRY({ type: 'engine_error', engineId: id, duration: loadDuration, error: err?.message });
+                    }
                 }
-                // Telemetry hook for opt-in error reporting
-                if (window.VNOCR_TELEMETRY && typeof window.VNOCR_TELEMETRY === 'function') {
-                    window.VNOCR_TELEMETRY({ type: 'engine_error', engineId: id, duration: loadDuration, error: err?.message });
-                }
-                
-                throw err;
             }
         })();
 
@@ -470,18 +467,20 @@ const EngineManager = (() => {
 
     async function disposeAllEngines() {
         if (window.VNOCR_DEBUG) console.debug("[ENGINE] Purging engine cache...");
-        for (const [id, meta] of engineMetadata.entries()) {
-            const engine = meta?.instance;
-            if (engine && typeof engine.dispose === 'function') {
-                try {
-                    await engine.dispose();
-                    if (window.VNOCR_DEBUG) console.debug(`[TRACE] Engine Disposed: ${id}`);
-                } catch (err) {
-                    console.error(`Engine dispose error (${id}):`, err);
+        await Promise.allSettled(
+            Array.from(engineMetadata.entries()).map(async ([id, meta]) => {
+                const engine = meta?.instance;
+                if (engine && typeof engine.dispose === 'function') {
+                    try {
+                        await engine.dispose();
+                        if (window.VNOCR_DEBUG) console.debug(`[TRACE] Engine Disposed: ${id}`);
+                    } catch (err) {
+                        console.error(`Engine dispose error (${id}):`, err);
+                    }
                 }
-            }
-            engineMetadata.set(id, { instance: null, state: 'not_loaded', loadPromise: null });
-        }
+                engineMetadata.set(id, { instance: null, state: 'not_loaded', loadPromise: null });
+            })
+        );
         currentEngine = null;
         currentEngineId = null;
         currentInfo = { id: null, capabilities: {} };
@@ -798,6 +797,9 @@ function setOCRStatus(state, text, progress = null, sourceId = null) {
     applyStatusStage(state, text, progress);
 
     function applyStatusStage(s, t, p) {
+        const cssClass = String(s).toLowerCase();
+        ocrStatus.className = `status-pill ${cssClass}`;
+
         // Progress Normalization
         if (p === null || s === STATUS.READY || s === STATUS.ERROR) {
             ocrStatus.style.removeProperty('--progress');
@@ -815,9 +817,6 @@ function setOCRStatus(state, text, progress = null, sourceId = null) {
                 statusLabel.classList.remove('fading');
             }, 100); // Wait for fade-out, update, then fade-in via CSS
         }
-
-        // Class State Mapping
-        ocrStatus.className = `status-pill ${s}`;
     }
 }
 
@@ -923,12 +922,17 @@ function applyPaddlePreprocessing(cropCanvas, lineCount) {
  */
 async function preprocessForEngine(engineId, rawCanvas, mode, lineCount) {
     console.log('[TRACE] preprocessForEngine called with engineId =', engineId);
-    const pinnedEngine = EngineManager.getEngineInstance();
     
-    // Try instance preprocess first
-    if (pinnedEngine && typeof pinnedEngine.preprocess === 'function') {
+    // Look up explicit engine instance by ID if available
+    let engineToUse = EngineManager.getEngineInstance();
+    if (engineId && typeof EngineManager.getEngineMetadata === 'function') {
+        const meta = EngineManager.getEngineMetadata(engineId);
+        if (meta && meta.instance) engineToUse = meta.instance;
+    }
+    
+    if (engineToUse && typeof engineToUse.preprocess === 'function') {
         try {
-            return await pinnedEngine.preprocess(rawCanvas, mode, lineCount);
+            return await engineToUse.preprocess(rawCanvas, mode, lineCount);
         } catch (err) {
             if (window.VNOCR_DEBUG) console.warn("[ENGINE] Instance preprocess failed, trying registry fallback:", err);
         }
@@ -1199,6 +1203,10 @@ function checkAutoCapture() {
     const pix = scoutCtx.getImageData(0, 0, 32, 32).data;
     const currentData = new Uint32Array(pix.buffer);
 
+    // Clear any pending stability timer before making new decisions
+    clearTimeout(stabilityTimer);
+    if (autoToggle?.parentElement) autoToggle.parentElement.classList.remove('active');
+
     // 2. Only run comparison and stability triggers if we aren't already busy AND engine is ready
     // Hardening v3.8: Added EngineManager.isReady() guard to prevent captures during switching/loading.
     if (!isProcessing && EngineManager.isReady() && lastScoutData) {
@@ -1206,7 +1214,6 @@ function checkAutoCapture() {
         for (let i = 0; i < currentData.length; i++) { if (currentData[i] !== lastScoutData[i]) diffPixels++; }
         
         if (diffPixels > 10) {
-            clearTimeout(stabilityTimer);
             if (autoToggle.parentElement) autoToggle.parentElement.classList.add('active');
             
             stabilityTimer = setTimeout(() => {
@@ -1573,13 +1580,18 @@ async function captureFrame(rect = null) {
 
         // Small cooldown to prevent rapid-fire re-triggering - UI updates only
         setTimeout(() => {
-            // Only update UI if this generation is still current
-            if (captureGeneration === myGen) {
+            // Always refresh UI heartbeat after a capture attempt to avoid leaving stale "processing" state.
+            try {
                 if (EngineManager.isReady()) {
-                    setOCRStatus('ready', EngineManager.getReadyStatus());
+                    const statusText = (captureGeneration === myGen) ? EngineManager.getReadyStatus() : 'Ready';
+                    setOCRStatus(STATUS.READY, statusText);
+                } else {
+                    setOCRStatus(STATUS.IDLE, 'idle');
                 }
-                updateCaptureButtonState();
+            } catch (e) {
+                console.warn("[CAPTURE] UI update failed:", e);
             }
+            updateCaptureButtonState();
         }, 100);
     }
 }
@@ -1879,7 +1891,7 @@ function pickBestMultiPassResult(results) {
         counts[r.text] = (counts[r.text] || 0) + 1;
     }
     const majority = Object.entries(counts).find(([t, c]) => c >= 3);
-    if (majority) return majority[0]; // Return the text (index 0), not the count (index 1)
+    if (majority && majority[1] >= 3) return majority[0];
 
     // 2. Highest confidence
     const bestByConf = results.reduce((a, b) =>
@@ -2413,17 +2425,19 @@ async function globalInitialize() {
         if (savedEngine === 'paddle') {
             // We load silently to avoid hijacking the UI before readiness.
             // The switch only happens ONCE the background promise fulfills.
-            EngineManager.getOrLoadEngine(savedEngine, true).then(() => {
-                if (window.VNOCR_DEBUG) console.log(`[BOOT] Silent upgrade to ${savedEngine} successful.`);
-                switchEngineModular(savedEngine); 
-            }).catch(err => {
-                console.warn(`[BOOT] Silent upgrade to ${savedEngine} failed:`, err);
-            });
+            EngineManager.getOrLoadEngine(savedEngine, true)
+                .then(() => {
+                    if (window.VNOCR_DEBUG) console.log(`[BOOT] Silent upgrade to ${savedEngine} successful.`);
+                    return switchEngineModular(savedEngine);
+                })
+                .catch(err => {
+                    console.warn(`[BOOT] Silent upgrade to ${savedEngine} failed:`, err);
+                });
         }
 
         // Step 4: Silent background preloads (Always warm up Paddle for zero-wait switching)
         if (!getSetting('skipPreloading') && savedEngine !== 'paddle') {
-            EngineManager.getOrLoadEngine('paddle', true);
+            EngineManager.getOrLoadEngine('paddle', true).catch(err => console.warn('[BOOT] Preload failed:', err));
         }
 
         applySettingsToUI();
