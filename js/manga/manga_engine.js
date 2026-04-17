@@ -35,7 +35,40 @@ export class MangaOCREngine {
         // Hardening Patch v2.5: Decoder Buffer Reuse
         this.decoderTokenBuffer = null;
         this.decoderLogitsBuffer = null;
-        this.decoderMaxLength = 256; 
+        this.decoderMaxLength = 256;
+
+        // Task 2: Encoder caching fields
+        this._encoderCacheKey = null;
+        this._encoderCacheOutput = null;
+    }
+
+    // Task 2: Helper to compute image key for caching
+    _computeImageKey(imageData) {
+        return `${imageData.width}x${imageData.height}:${imageData.data?.length ?? 0}`;
+    }
+
+    // Task 2: Helper to build encoder feeds
+    _buildEncoderFeeds(imageData) {
+        return { pixel_values: imageData };
+    }
+
+    // Task 2: Wrapper for encoder with caching
+    async _runEncoder(imageData) {
+        const key = this._computeImageKey(imageData);
+        if (this._encoderCacheKey === key && this._encoderCacheOutput) {
+            return this._encoderCacheOutput;
+        }
+        const feeds = this._buildEncoderFeeds(imageData);
+        const out = await this.encoderSession.run(feeds);
+        this._encoderCacheKey = key;
+        this._encoderCacheOutput = out;
+        return out;
+    }
+
+    // Task 2: Reset cache
+    reset() {
+        this._encoderCacheKey = null;
+        this._encoderCacheOutput = null;
     }
 
     /**
@@ -263,13 +296,21 @@ export class MangaOCREngine {
             this.busy = true;
             const pixelValues = this._preprocessToTensor(sourceCanvas);
 
-            const encoderFeeds = { pixel_values: pixelValues };
-            const encoderResults = await this.encoderSession.run(encoderFeeds);
+            // Task 1: Profile encoder call
+            const encoderStart = performance.now();
+            const encoderResults = await this._runEncoder(pixelValues);
+            const encoderTime = performance.now() - encoderStart;
+            console.log(`[PROFILE] MangaOCR encoder: ${encoderTime.toFixed(1)}ms`);
+            
             const encoderHiddenStates = encoderResults.last_hidden_state;
 
             let generatedTokens = [this.BOS_TOKEN_ID];
 
+            // Task 1: Profile decoder loop
+            const decoderStart = performance.now();
+            let decoderSteps = 0;
             for (let step = 0; step < this.MAX_LENGTH; step++) {
+                decoderSteps++;
                 const pos = generatedTokens.length;
                 this.decoderTokenBuffer[pos - 1] = BigInt(generatedTokens[pos - 1]);
                 
@@ -284,6 +325,9 @@ export class MangaOCREngine {
                 if (nextTokenId === this.EOS_TOKEN_ID) break;
                 generatedTokens.push(nextTokenId);
             }
+            // Task 1: Log decoder loop timing
+            const decoderTime = performance.now() - decoderStart;
+            console.log(`[PROFILE] MangaOCR decoder: ${decoderTime.toFixed(1)}ms (${decoderSteps} steps)`);
 
             const text = this._decode(generatedTokens);
 

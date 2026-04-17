@@ -299,6 +299,30 @@ export class PaddleOCR {
         }
     }
 
+    // Task 3: Add batch recognition method
+    async recognizeLines(lineTensors) {
+        if (!lineTensors.length) return [];
+        if (lineTensors.length === 1) {
+            const feeds = { [this.recSession.inputNames[0]]: lineTensors[0] };
+            const out = await this.recSession.run(feeds);
+            return [out];
+        }
+        const first = lineTensors[0];
+        const [_, C, H, W] = first.dims;
+        const N = lineTensors.length;
+        const stacked = new ort.Tensor(
+            first.type,
+            new (first.data.constructor)(N * C * H * W),
+            [N, C, H, W]
+        );
+        for (let i = 0; i < N; i++) {
+            stacked.data.set(lineTensors[i].data, i * (C * H * W));
+        }
+        const feeds = { [this.recSession.inputNames[0]]: stacked };
+        const out = await this.recSession.run(feeds);
+        return [out];
+    }
+
     async recognize(cropCanvas) {
         if (!this.recSession) return { text: '' };
         if (this.busy) {
@@ -322,12 +346,14 @@ export class PaddleOCR {
             
             const inputTensor = new ort.Tensor('float32', tensorData, [1, 3, h, w]);
 
-            const feeds = {};
-            feeds[this.recSession.inputNames[0]] = inputTensor;
-
-            const output = await this.recSession.run(feeds);
+            // Task 1: Profile rec inference
+            const recStart = performance.now();
+            const output = await this.recognizeLines([inputTensor]);
+            const recTime = performance.now() - recStart;
+            console.log(`[PROFILE] PaddleOCR rec inference: ${recTime.toFixed(1)}ms`);
+            
             const outputName = this.recSession.outputNames[0];
-            const out = output[outputName];
+            const out = output[0][outputName];
 
             let logits = out.data;
             let dims = out.dims;
