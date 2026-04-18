@@ -88,7 +88,7 @@ import {
 import { STATUS } from './js/core/status.js?v=3.8.4';
 import { createEngineManager } from './js/core/engine_manager.js?v=3.8.4';
 import { captureFrame, preprocessForEngine, pickBestMultiPassResult, weightedScore, findBestMultiPassIndex } from './js/core/capture_pipeline.js?v=3.8.4';
-import { updateCaptureButtonState, setOCRStatus, showEngineCleanupBanner, hideEngineCleanupBanner } from './js/ui/ui_controller.js?v=3.8.4';
+import { updateCaptureButtonState, setOCRStatus } from './js/ui/ui_controller.js?v=3.8.4';
 
 import {
     runPaddleOCR
@@ -311,7 +311,6 @@ async function switchEngineModular(id) {
 
         // Memory guard: evict heavy engines (MangaOCR ~1.2GB) when not active
         EngineManager.evictOtherEngines(id);
-        checkAndShowCleanupBanner();
 
         // 4) Restore UI Selectors
         if (engineSelector) {
@@ -618,40 +617,6 @@ function unfreezeCaptureButton() {
     if (refreshOcrBtn) {
         refreshOcrBtn.disabled = false;
         refreshOcrBtn.classList.remove('disabled');
-    }
-}
-
-let cleanupBannerDismissedForSession = false;
-
-function checkAndShowCleanupBanner() {
-    if (typeof EngineManager === 'undefined') return;
-    if (cleanupBannerDismissedForSession) {
-        hideEngineCleanupBanner();
-        return;
-    }
-    
-    const current = EngineManager.getInfo?.()?.id;
-    const metaP = EngineManager.getEngineMetadata?.('paddle');
-    const metaM = EngineManager.getEngineMetadata?.('manga');
-    const purgePaddleBtn = document.getElementById('purgePaddleBtn');
-    const purgeMangaBtn = document.getElementById('purgeMangaBtn');
-
-    if (purgePaddleBtn) {
-        const isPaddleActive = current === 'paddle';
-        purgePaddleBtn.disabled = isPaddleActive;
-        purgePaddleBtn.classList.toggle('disabled', isPaddleActive);
-    }
-
-    if (purgeMangaBtn) {
-        const isMangaActive = current === 'manga';
-        purgeMangaBtn.disabled = isMangaActive;
-        purgeMangaBtn.classList.toggle('disabled', isMangaActive);
-    }
-
-    if (metaP?.state === 'ready' && metaM?.state === 'ready') {
-        showEngineCleanupBanner();
-    } else {
-        hideEngineCleanupBanner();
     }
 }
 
@@ -1844,7 +1809,6 @@ async function globalInitialize() {
         engineReady = true;
         window.engineReady = true;
         updateCaptureButtonState();
-        checkAndShowCleanupBanner();
     });
     EngineManager.onLoading(() => {
         engineReady = false;
@@ -2119,53 +2083,6 @@ function initEventListeners() {
             closeMenu();
         }
     };
-
-    // Engine Cleanup Banner Buttons
-    const purgePaddleBtn = document.getElementById('purgePaddleBtn');
-    const purgeMangaBtn = document.getElementById('purgeMangaBtn');
-    const dismissCleanupBanner = document.getElementById('dismissCleanupBanner');
-    
-    // Global handler functions for HTML onclick fallback
-    window.purgePaddleFromBanner = async () => {
-        if (EngineManager.getInfo?.()?.id === 'paddle') {
-            checkAndShowCleanupBanner();
-            return;
-        }
-        await EngineManager.disposeEngine?.('paddle');
-        checkAndShowCleanupBanner();
-    };
-    
-    window.purgeMangaFromBanner = async () => {
-        if (EngineManager.getInfo?.()?.id === 'manga') {
-            checkAndShowCleanupBanner();
-            return;
-        }
-        await EngineManager.disposeEngine?.('manga');
-        checkAndShowCleanupBanner();
-    };
-    
-    window.dismissCleanupFromBanner = () => {
-        cleanupBannerDismissedForSession = true;
-        hideEngineCleanupBanner();
-    };
-    
-    if (purgePaddleBtn) {
-        purgePaddleBtn.addEventListener('click', window.purgePaddleFromBanner);
-    } else {
-        console.warn('[INIT] purgePaddleBtn not found');
-    }
-    
-    if (purgeMangaBtn) {
-        purgeMangaBtn.addEventListener('click', window.purgeMangaFromBanner);
-    } else {
-        console.warn('[INIT] purgeMangaBtn not found');
-    }
-    
-    if (dismissCleanupBanner) {
-        dismissCleanupBanner.addEventListener('click', window.dismissCleanupFromBanner);
-    } else {
-        console.warn('[INIT] dismissCleanupBanner not found');
-    }
 
     // 6. Sub-Menu Quick Settings
     const subItemBtns = document.querySelectorAll('.menu-subitem-btn');
