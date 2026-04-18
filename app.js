@@ -592,41 +592,38 @@ const EngineManager = (() => {
     }
 
     /**
-     * Silent initialization of core engines.
-     * Paddle always loads in worker, Manga only if selected, Tesseract on main thread.
-     */
-    /**
-     * Silent background preloading of core engines.
-     * All loads run on the main thread via cooperative async scheduling (isSilent=true).
-     * getOrLoadEngine's built-in deduplication guarantees no double-loads even if an
-     * engine is already loading or was already set active before this is called.
+     * Silent background pre-warming of the Paddle engine.
+     *
+     * Strategy:
+     *   - Spawns the existing paddle_preload_worker to fetch model files and create
+     *     ONNX sessions entirely inside a Worker context (off the main thread).
+     *   - Main thread is never blocked — no ONNX session creation, no UI freezes.
+     *   - The worker warms the browser and Service Worker cache so that when the
+     *     user later switches to Paddle, only ONNX session creation remains
+     *     (network fetch is a cache hit ≈ instant).
+     *   - Worker result is intentionally discarded: ONNX sessions are not transferable
+     *     across threads. The cache-warmth is the only goal.
+     *
+     * Exclusions:
+     *   - Paddle is the saved/active engine → handled by globalInitialize via
+     *     switchEngineModular (non-silent, locks capture button).
+     *   - MangaOCR is never silently preloaded — only loaded if explicitly selected
+     *     (cost: ~450 MB + 1.2 GB VRAM; user must opt-in).
+     *   - Tesseract is already loaded synchronously at startup (no-op here).
      */
     async function preloadCoreEngines() {
-        if (window.VNOCR_DEBUG) console.debug("[ENGINE] Preloading core engines...");
+        if (window.VNOCR_DEBUG) console.debug('[ENGINE] Starting Paddle cache-warm via worker...');
 
-        const savedEngine = getSetting('ocrEngine') || 'tesseract';
-
-        // Tesseract is already loaded at startup — guaranteed deduplication no-op.
-        getOrLoadEngine('tesseract', true).catch(err =>
-            console.warn('[ENGINE] Tesseract silent preload failed:', err)
-        );
-
-        // Paddle: always warm up silently so the first engine switch is instant.
-        // Skip if Paddle is already the active engine (it's being loaded explicitly).
-        if (savedEngine !== 'paddle') {
-            getOrLoadEngine('paddle', true).catch(err =>
-                console.warn('[ENGINE] Paddle silent preload failed:', err)
-            );
+        try {
+            // Fire-and-forget: we do not call rehydrateEngine() — we only want
+            // the worker to populate the browser/SW cache, not to store a transferable
+            // engine instance (ONNX sessions are NOT transferable across threads).
+            await loadEngineInWorker('paddle');
+            if (window.VNOCR_DEBUG) console.debug('[ENGINE] Paddle cache-warm complete (worker).');
+        } catch (err) {
+            // Non-critical: first user-initiated Paddle switch will just be a cache-cold load.
+            if (window.VNOCR_DEBUG) console.warn('[ENGINE] Paddle worker cache-warm failed:', err.message);
         }
-
-        // Manga: only warm up if it was the previously selected engine.
-        if (savedEngine === 'manga') {
-            getOrLoadEngine('manga', true).catch(err =>
-                console.warn('[ENGINE] Manga silent preload failed:', err)
-            );
-        }
-
-        if (window.VNOCR_DEBUG) console.debug("[ENGINE] Core preload dispatched (background).");
     }
 
     /**
@@ -2764,25 +2761,39 @@ async function globalInitialize() {
         // Step 2: Cosmetic splash dismissal (Branding pass complete)
         setTimeout(() => dismissSplashScreen(), 1000);
 
-        // Step 3: Silent background recovery of saved preference
-        // MangaOCR is explicitly excluded from background preloading per security/perf policy.
-        if (savedEngine === 'paddle') {
-            // We load silently to avoid hijacking the UI before readiness.
-            // The switch only happens ONCE the background promise fulfills.
-            EngineManager.getOrLoadEngine(savedEngine, true)
-                .then(() => {
-                    if (window.VNOCR_DEBUG) console.log(`[BOOT] Silent upgrade to ${savedEngine} successful.`);
-                    return switchEngineModular(savedEngine);
-                })
-                .catch(err => {
-                    console.warn(`[BOOT] Silent upgrade to ${savedEngine} failed:`, err);
-                });
+        // Step 3: Restore saved heavy engine
+        //
+        // Design contract:
+        //  - savedEngine === 'tesseract':  nothing to do, already active.
+        //  - savedEngine === 'paddle':     switch to it non-silently so the
+        //    capture button is LOCKED until the engine is ready. The user sees
+        //    Tesseract has loaded, the status pill shows Paddle loading, and the
+        //    RE-CAPTURE button is disabled until Paddle confirms ready. This
+        //    prevents firing OCR with the wrong engine.
+        //  - savedEngine === 'manga':      same lock semantics as Paddle.
+        //    Manga is never silently preloaded (450 MB + 1.2 GB VRAM).
+        //
+        // Note: switchEngineModular is NOT awaited — the splash is already gone, the
+        // user can see and interact with the UI, and the button lock is the correct
+        // signal that a heavy engine is loading in the background.
+        if (savedEngine === 'paddle' || savedEngine === 'manga') {
+            switchEngineModular(savedEngine).catch(err => {
+                console.warn(`[BOOT] Failed to restore saved engine '${savedEngine}':`, err);
+                // switchEngine already rolled back currentEngineId to 'tesseract'
+                // and emitted ERROR on the status pill. Nothing else needed.
+            });
         }
 
-        // Step 4: Silent background preloads via the canonical preloadCoreEngines path.
-        // getOrLoadEngine's built-in deduplication ensures no double-load for the
-        // engine that was already switched to above.
-        if (!getSetting('skipPreloading')) {
+        // Step 4: Background Paddle cache-warm (only when Paddle is NOT the goal engine).
+        //
+        // Uses paddle_preload_worker.js — all network I/O and ONNX session creation
+        // happen inside a Worker context (off the main thread). The worker warms the
+        // browser / Service Worker cache. When the user later switches to Paddle,
+        // the model fetch is a cache hit and only ONNX session creation remains.
+        //
+        // Manga is intentionally excluded: 450 MB download should never run silently.
+        // skipPreloading setting disables this for low-memory / low-bandwidth devices.
+        if (!getSetting('skipPreloading') && savedEngine !== 'paddle') {
             EngineManager.preloadCoreEngines();
         }
 
