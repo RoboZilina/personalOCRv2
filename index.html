@@ -460,9 +460,9 @@
     <!-- Engine Cleanup Banner -->
     <div id="engineCleanupBanner" class="hidden">
         <span>Unused OCR engines are loaded. Free memory?</span>
-        <button id="purgePaddleBtn">Purge Paddle</button>
-        <button id="purgeMangaBtn">Purge Manga</button>
-        <button id="dismissCleanupBanner">Dismiss</button>
+        <button id="purgePaddleBtn" onclick="window.purgePaddleFromBanner?.()">Purge Paddle</button>
+        <button id="purgeMangaBtn" onclick="window.purgeMangaFromBanner?.()">Purge Manga</button>
+        <button id="dismissCleanupBanner" onclick="window.dismissCleanupFromBanner?.()">Dismiss</button>
     </div>
     <style>
         #engineCleanupBanner {

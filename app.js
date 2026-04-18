@@ -86,7 +86,7 @@ import {
 } from './settings.js';
 
 import { STATUS } from './js/core/status.js?v=3.8.4';
-import { EngineManager } from './js/core/engine_manager.js?v=3.8.4';
+import { createEngineManager } from './js/core/engine_manager.js?v=3.8.4';
 import { captureFrame, preprocessForEngine, pickBestMultiPassResult, weightedScore, findBestMultiPassIndex } from './js/core/capture_pipeline.js?v=3.8.4';
 import { updateCaptureButtonState, setOCRStatus, showEngineCleanupBanner, hideEngineCleanupBanner } from './js/ui/ui_controller.js?v=3.8.4';
 
@@ -240,18 +240,15 @@ const engines = {
     }
 };
 
-// Expose engines registry to EngineManager module
-window.VNOCR_ENGINES = engines;
-
 // ============================
-// EngineManager imported from js/core/engine_manager.js
+// EngineManager initialization
 // ============================
 
 /* eslint-disable no-unused-expressions */
 
-// EngineManager is imported from js/core/engine_manager.js
-// Temporary global bridge for backwards compatibility
-window.EngineManager = EngineManager;
+// Create EngineManager instance with engines registry
+const EngineManager = createEngineManager(engines);
+window.EngineManager = EngineManager; // Global bridge for backwards compatibility
 
 
 // Modular engine state handled by EngineManager events.
@@ -2102,32 +2099,39 @@ function initEventListeners() {
     const purgeMangaBtn = document.getElementById('purgeMangaBtn');
     const dismissCleanupBanner = document.getElementById('dismissCleanupBanner');
     
+    // Global handler functions for HTML onclick fallback
+    window.purgePaddleFromBanner = async () => {
+        const wasActive = EngineManager.getInfo?.()?.id === 'paddle';
+        await EngineManager.disposeEngine?.('paddle');
+        hideEngineCleanupBanner();
+        if (wasActive) switchEngineModular('tesseract');
+    };
+    
+    window.purgeMangaFromBanner = async () => {
+        const wasActive = EngineManager.getInfo?.()?.id === 'manga';
+        await EngineManager.disposeEngine?.('manga');
+        hideEngineCleanupBanner();
+        if (wasActive) switchEngineModular('tesseract');
+    };
+    
+    window.dismissCleanupFromBanner = () => {
+        hideEngineCleanupBanner();
+    };
+    
     if (purgePaddleBtn) {
-        purgePaddleBtn.addEventListener('click', async () => {
-            const wasActive = EngineManager.getInfo?.()?.id === 'paddle';
-            EngineManager.disposeEngine?.('paddle');
-            hideEngineCleanupBanner();
-            if (wasActive) switchEngineModular('tesseract');
-        });
+        purgePaddleBtn.addEventListener('click', window.purgePaddleFromBanner);
     } else {
         console.warn('[INIT] purgePaddleBtn not found');
     }
     
     if (purgeMangaBtn) {
-        purgeMangaBtn.addEventListener('click', async () => {
-            const wasActive = EngineManager.getInfo?.()?.id === 'manga';
-            EngineManager.disposeEngine?.('manga');
-            hideEngineCleanupBanner();
-            if (wasActive) switchEngineModular('tesseract');
-        });
+        purgeMangaBtn.addEventListener('click', window.purgeMangaFromBanner);
     } else {
         console.warn('[INIT] purgeMangaBtn not found');
     }
     
     if (dismissCleanupBanner) {
-        dismissCleanupBanner.addEventListener('click', () => {
-            hideEngineCleanupBanner();
-        });
+        dismissCleanupBanner.addEventListener('click', window.dismissCleanupFromBanner);
     } else {
         console.warn('[INIT] dismissCleanupBanner not found');
     }

@@ -11,6 +11,14 @@ import { STATUS } from './status.js?v=3.8.4';
 // ============================
 
 /* eslint-disable no-unused-expressions */
+
+/**
+ * Factory function to create EngineManager instance.
+ * @param {Object} engines - The engines registry object
+ * @returns {Object} EngineManager singleton
+ */
+function createEngineManager(engines) {
+
 const EngineManager = ((engines) => {
 
     // Internal State Machine (Gold v3.8 Compliance)
@@ -553,6 +561,10 @@ const EngineManager = ((engines) => {
         }
     };
 
-})(window.VNOCR_ENGINES);
+})(engines);
 
-export { EngineManager };
+return EngineManager;
+
+}
+
+export { createEngineManager };
