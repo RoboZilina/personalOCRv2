@@ -5,7 +5,7 @@ self.onmessage = async (e) => {
 
     if (command === 'load') {
         try {
-            const engine = new PaddleOCR();
+            const engine = new PaddleOCR('/models/paddle/manifest.json', '/js/onnx/');
             await engine.load();
             await engine.warmUp();
             self.postMessage({ type: 'ready', payload: { loaded: true, warmedUp: true } });

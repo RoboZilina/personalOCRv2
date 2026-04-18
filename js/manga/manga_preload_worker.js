@@ -5,7 +5,7 @@ self.onmessage = async (e) => {
 
     if (command === 'load') {
         try {
-            const engine = new MangaOCREngine();
+            const engine = new MangaOCREngine('/models/manga/manifest.json');
             await engine.load();
             await engine.warmUp();
             self.postMessage({ type: 'ready', payload: { loaded: true, warmedUp: true } });
