@@ -99,6 +99,10 @@ import { PaddleOCR } from './js/paddle/paddle_engine.js?v=3.8.4';
 import { MangaOCREngine } from './js/manga/manga_engine.js?v=3.8.4';
 import { isWebGPUSupported as vnIsWebGPUSupported } from './js/onnx/onnx_support.js?v=3.8.4';
 
+window.STATUS = STATUS;
+window.setOCRStatus = setOCRStatus;
+window.updateCaptureButtonState = updateCaptureButtonState;
+
 const splashHints = [
     "PaddleOCR: Highest accuracy, but longest warm-up time.",
     "MangaOCR uses large models and requires more memory.",
@@ -756,11 +760,13 @@ function setupSelectionOverlay() {
             // Throttled First Capture (Patch v2.5)
             if (!captureLocked && engineReady) {
                 captureLocked = true;
+                window.captureLocked = true;
                 updateCaptureButtonState();
 
                 captureFrame(selectionRect).finally(() => {
                     setTimeout(() => {
                         captureLocked = false;
+                        window.captureLocked = false;
                         updateCaptureButtonState();
                     }, 300);
                 });
@@ -818,7 +824,7 @@ function checkAutoCapture() {
 
     // 2. Only run comparison and stability triggers if we aren't already busy AND engine is ready
     // Hardening v3.8: Added EngineManager.isReady() guard to prevent captures during switching/loading.
-    if (!isProcessing && EngineManager.isReady() && lastScoutData) {
+    if (!window.isProcessing && EngineManager.isReady() && lastScoutData) {
         let diffPixels = 0;
         for (let i = 0; i < currentData.length; i++) { if (currentData[i] !== lastScoutData[i]) diffPixels++; }
         
@@ -829,7 +835,7 @@ function checkAutoCapture() {
                 if (autoToggle?.parentElement) autoToggle.parentElement.classList.remove('active');
                 
                 // Re-verify conditions after 800ms delay
-                if (getSetting('autoCapture') && !isProcessing && EngineManager.isReady()) {
+                if (getSetting('autoCapture') && !window.isProcessing && EngineManager.isReady()) {
                     captureFrame(selectionRect);
                 }
             }, 800);
@@ -1949,6 +1955,7 @@ async function globalInitialize() {
     // 5. Sync engine readiness state (observers are already registered; this is
     // a one-time snapshot in case the initial switch resolved before the event fired)
     engineReady = EngineManager.isReady();
+    window.engineReady = engineReady;
     updateCaptureButtonState();
 
     // 6. Final Sync & Listeners
@@ -1993,7 +2000,7 @@ function initEventListeners() {
     // 3. Main Toolbar
     if (refreshOcrBtn) {
         refreshOcrBtn.onclick = async () => {
-            if (captureLocked || isProcessing) return;
+            if (captureLocked || window.isProcessing) return;
             captureLocked = true;
             window.captureLocked = true;
             updateCaptureButtonState();
