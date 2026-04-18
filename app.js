@@ -149,7 +149,7 @@ function startSplashHintRotation() {
 
 // DOM Elements
 // DOM Elements (Identified as Gold v3.1.1 Lifecycle Nodes)
-let selectWindowBtn, vnVideo, selectionOverlay, historyContent, ttsVoiceSelect, speakLatestBtn, latestText, ocrStatus, refreshOcrBtn, clearHistoryBtn, engineSelector, modeSelector, autoToggle, autoCaptureBtn, upscaleSlider, upscaleVal, perfIcon, perfInfo, menuPurge, menuBtn, sideMenu, menuBackdrop, menuInstall, menuGuide, menuContact, menuReset, captureButton;
+let selectWindowBtn, vnVideo, selectionOverlay, historyContent, ttsVoiceSelect, speakLatestBtn, latestText, ocrStatus, refreshOcrBtn, clearHistoryBtn, engineSelector, modeSelector, autoToggle, autoCaptureBtn, upscaleSlider, upscaleVal, perfIcon, perfInfo, menuPurge, menuBtn, sideMenu, menuBackdrop, menuInstall, menuGuide, menuContact, menuReset;
 
 // === Throttling & Readiness State (Patch v3.1 Gold) ===
 let captureLocked = false;
@@ -603,21 +603,27 @@ function stopCapture() {
 }
 
 function freezeCaptureButton() {
-    if (captureButton) {
-        captureButton.disabled = true;
-        captureButton.classList.add('disabled');
+    if (refreshOcrBtn) {
+        refreshOcrBtn.disabled = true;
+        refreshOcrBtn.classList.add('disabled');
     }
 }
 
 function unfreezeCaptureButton() {
-    if (captureButton) {
-        captureButton.disabled = false;
-        captureButton.classList.remove('disabled');
+    if (refreshOcrBtn) {
+        refreshOcrBtn.disabled = false;
+        refreshOcrBtn.classList.remove('disabled');
     }
 }
 
+let cleanupBannerDismissedForSession = false;
+
 function checkAndShowCleanupBanner() {
     if (typeof EngineManager === 'undefined') return;
+    if (cleanupBannerDismissedForSession) {
+        hideEngineCleanupBanner();
+        return;
+    }
     
     const current = EngineManager.getInfo?.()?.id;
     const metaP = EngineManager.getEngineMetadata?.('paddle');
@@ -1792,7 +1798,6 @@ async function globalInitialize() {
     ocrStatus = document.getElementById('ocr-status');
     refreshOcrBtn = document.getElementById('refresh-ocr-btn');
     window.refreshOcrBtn = refreshOcrBtn; // Expose for UI controller module
-    captureButton = refreshOcrBtn; // Alias for freeze/unfreeze functions
     clearHistoryBtn = document.getElementById('clear-history-btn');
     engineSelector = document.getElementById('model-selector');
     modeSelector = document.getElementById('mode-selector');
@@ -2132,6 +2137,7 @@ function initEventListeners() {
     };
     
     window.dismissCleanupFromBanner = () => {
+        cleanupBannerDismissedForSession = true;
         hideEngineCleanupBanner();
     };
     
