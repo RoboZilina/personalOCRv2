@@ -36,6 +36,7 @@ export class MangaOCREngine {
         this.decoderTokenBuffer = null;
         this.decoderLogitsBuffer = null;
         this.decoderMaxLength = 256;
+        this._decoderTypeMismatchLogged = false;
 
         // Encoder results are not cached — per-frame correctness requires fresh inference.
         // (A dimension-based cache key cannot distinguish frames of the same resolution.)
@@ -233,14 +234,34 @@ export class MangaOCREngine {
     }
 
     _alignDecoderHiddenStateType(encoderHiddenStates) {
-        const expectedType = this.decoderSession?.inputMetadata?.encoder_hidden_states?.type;
-        if (!expectedType || expectedType === encoderHiddenStates.type) {
+        const normalizeType = (type) => String(type || '')
+            .trim()
+            .toLowerCase()
+            .replace(/^tensor\((.+)\)$/, '$1');
+
+        const expectedType = normalizeType(this.decoderSession?.inputMetadata?.encoder_hidden_states?.type);
+        const actualType = normalizeType(encoderHiddenStates?.type);
+
+        if (!expectedType || !actualType || expectedType === actualType) {
             return encoderHiddenStates;
         }
 
         const expectsFloat32 = expectedType === 'float32' || expectedType === 'float';
-        if (expectsFloat32 && encoderHiddenStates.type === 'float16') {
+        const isActualFloat16 = actualType === 'float16' || actualType === 'half';
+
+        if (expectsFloat32 && isActualFloat16) {
             return new ort.Tensor('float32', Float32Array.from(encoderHiddenStates.data), encoderHiddenStates.dims);
+        }
+
+        const debugEnabled = typeof window !== 'undefined' && !!window.VNOCR_DEBUG;
+        if (debugEnabled && !this._decoderTypeMismatchLogged) {
+            this._decoderTypeMismatchLogged = true;
+            console.debug('[ENGINE] MangaOCR decoder hidden-state type mismatch not auto-converted', {
+                expectedType,
+                actualType,
+                expectedRaw: this.decoderSession?.inputMetadata?.encoder_hidden_states?.type,
+                actualRaw: encoderHiddenStates?.type
+            });
         }
 
         return encoderHiddenStates;

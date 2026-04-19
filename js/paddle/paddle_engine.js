@@ -31,6 +31,12 @@ export class PaddleOCR {
         this.busy = false; // Hardening v3.4: Concurrency Lock
         this.loadPromise = null; // Idempotent load guard
         this._warmedUp = false; // Idempotent warm-up guard
+        this._diagLogged = {
+            modelSource: false,
+            providerFallback: false,
+            warmupTensor: false,
+            firstDetectTiming: false
+        };
 
         // Hardening Patch v2.5: Pre-allocated buffer for zero-churn recognition
         this.recognitionBuffer = null;
@@ -94,6 +100,7 @@ export class PaddleOCR {
         this.checkAssets();
 
         const ortRuntime = getOrtRuntime();
+        const debugEnabled = typeof window !== 'undefined' && !!window.VNOCR_DEBUG;
 
         try {
             this.reportStatus(STATUS.LOADING, '🟡 PaddleOCR: loading manifest…');
@@ -121,6 +128,13 @@ export class PaddleOCR {
             // Load detection model (Hybrid: Remote Priority)
             this.reportStatus(STATUS.DOWNLOADING, '🟡 PaddleOCR: downloading detection model…', 0.1);
             const detPath = this.manifest.det.remote_url || (modelBase + this.manifest.det.path);
+            if (debugEnabled && !this._diagLogged.modelSource) {
+                console.debug('[ENGINE] PaddleOCR model source', {
+                    detection: this.manifest.det.remote_url ? 'remote' : 'local',
+                    recognition: this.manifest.rec.remote_url ? 'remote' : 'local'
+                });
+                this._diagLogged.modelSource = true;
+            }
             let detBuffer = await fetchWithProgress(
                 detPath,
                 (p) => this.reportStatus(STATUS.DOWNLOADING, '🟡 PaddleOCR: downloading detection model…', 0.1 + (p * 0.4))
@@ -141,6 +155,18 @@ export class PaddleOCR {
             this.reportStatus(STATUS.LOADING, '🟡 PaddleOCR: initializing recognition…', 0.9);
             this.recSession = await ortRuntime.InferenceSession.create(recBuffer, { executionProviders });
             console.log(`[ENGINE] PaddleOCR Recognition Session — Active Backend: ${this.recSession.executionProvider || 'unknown'}`);
+            if (debugEnabled && !this._diagLogged.providerFallback) {
+                const detProvider = this.detSession.executionProvider || 'unknown';
+                const recProvider = this.recSession.executionProvider || 'unknown';
+                if (detProvider === 'unknown' || recProvider === 'unknown') {
+                    console.debug('[ENGINE] PaddleOCR provider resolution fallback', {
+                        requestedProviders: executionProviders,
+                        detectionProvider: detProvider,
+                        recognitionProvider: recProvider
+                    });
+                    this._diagLogged.providerFallback = true;
+                }
+            }
             recBuffer = null; // Memory Guard: Release buffer
 
             // Load dictionary
@@ -203,6 +229,17 @@ export class PaddleOCR {
             const recDummy = new ortRuntime.Tensor('float32', new Float32Array(1 * 3 * 48 * 320), recShape);
             const recFeeds = {};
             recFeeds[this.recSession.inputNames[0]] = recDummy;
+            if (typeof window !== 'undefined' && window.VNOCR_DEBUG && !this._diagLogged.warmupTensor) {
+                this._diagLogged.warmupTensor = true;
+                console.debug('[ENGINE] PaddleOCR warm-up tensor metadata', {
+                    detInputName: this.detSession.inputNames[0],
+                    detShape,
+                    detType: detDummy.type,
+                    recInputName: this.recSession.inputNames[0],
+                    recShape,
+                    recType: recDummy.type
+                });
+            }
             await this.recSession.run(recFeeds);
 
             console.log('[ENGINE] PaddleOCR warm-up complete');
@@ -215,6 +252,7 @@ export class PaddleOCR {
         if (!this.detSession) return { boxes: [] };
 
         const ortRuntime = getOrtRuntime();
+        const detectStart = (typeof performance !== 'undefined' && typeof window !== 'undefined' && window.VNOCR_DEBUG) ? performance.now() : 0;
 
         try {
 
@@ -242,6 +280,12 @@ export class PaddleOCR {
             
             // Memory Cleanup
             feeds[this.detSession.inputNames[0]] = null;
+
+            if (typeof window !== 'undefined' && window.VNOCR_DEBUG && !this._diagLogged.firstDetectTiming) {
+                this._diagLogged.firstDetectTiming = true;
+                const detectMs = performance.now() - detectStart;
+                console.debug(`[ENGINE] PaddleOCR first detect() completed in ${detectMs.toFixed(1)}ms`);
+            }
             
             return { boxes };
         } catch (err) {

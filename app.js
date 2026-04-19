@@ -51,6 +51,7 @@ const perfStats = {
     lastUpdate: Date.now(),
     showAdvanced: false
 };
+window.perfStats = perfStats;
 /*
   PERSONAL OCR HARDENING PHASE:
   DO NOT MODIFY the following functions during patches:
