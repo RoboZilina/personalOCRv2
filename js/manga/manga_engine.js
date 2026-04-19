@@ -37,6 +37,7 @@ export class MangaOCREngine {
         this.decoderLogitsBuffer = null;
         this.decoderMaxLength = 256;
         this._decoderTypeMismatchLogged = false;
+        this._decoderFallbackCoercionLogged = false;
 
         // Encoder results are not cached — per-frame correctness requires fresh inference.
         // (A dimension-based cache key cannot distinguish frames of the same resolution.)
@@ -242,14 +243,23 @@ export class MangaOCREngine {
         const expectedType = normalizeType(this.decoderSession?.inputMetadata?.encoder_hidden_states?.type);
         const actualType = normalizeType(encoderHiddenStates?.type);
 
-        if (!expectedType || !actualType || expectedType === actualType) {
+        if (!actualType || expectedType === actualType) {
             return encoderHiddenStates;
         }
 
-        const expectsFloat32 = expectedType === 'float32' || expectedType === 'float';
+        const expectsFloat32 = !expectedType || expectedType === 'float32' || expectedType === 'float';
         const isActualFloat16 = actualType === 'float16' || actualType === 'half';
 
         if (expectsFloat32 && isActualFloat16) {
+            if (!expectedType && !this._decoderFallbackCoercionLogged) {
+                this._decoderFallbackCoercionLogged = true;
+                console.debug('[ENGINE] MangaOCR fallback coercion applied (missing decoder metadata)', {
+                    expectedType,
+                    actualType,
+                    expectedRaw: this.decoderSession?.inputMetadata?.encoder_hidden_states?.type,
+                    actualRaw: encoderHiddenStates?.type
+                });
+            }
             return new ort.Tensor('float32', Float32Array.from(encoderHiddenStates.data), encoderHiddenStates.dims);
         }
 

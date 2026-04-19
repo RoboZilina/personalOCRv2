@@ -10,6 +10,47 @@ function getOrtRuntime() {
     return ortRuntime;
 }
 
+function float32ToFloat16Bits(value) {
+    const floatView = new Float32Array(1);
+    const intView = new Uint32Array(floatView.buffer);
+    floatView[0] = value;
+    const x = intView[0];
+
+    const sign = (x >>> 31) & 0x1;
+    let exponent = ((x >>> 23) & 0xff) - 127 + 15;
+    let mantissa = x & 0x7fffff;
+
+    if (exponent <= 0) {
+        if (exponent < -10) return sign << 15;
+        mantissa = (mantissa | 0x800000) >> (1 - exponent);
+        return (sign << 15) | ((mantissa + 0x1000) >> 13);
+    }
+
+    if (exponent >= 31) {
+        if (mantissa !== 0) return (sign << 15) | 0x7e00;
+        return (sign << 15) | 0x7c00;
+    }
+
+    return (sign << 15) | (exponent << 10) | ((mantissa + 0x1000) >> 13);
+}
+
+function float16BitsToFloat32(bits) {
+    const sign = (bits & 0x8000) ? -1 : 1;
+    const exponent = (bits >> 10) & 0x1f;
+    const fraction = bits & 0x03ff;
+
+    if (exponent === 0) {
+        if (fraction === 0) return sign * 0;
+        return sign * Math.pow(2, -14) * (fraction / 1024);
+    }
+
+    if (exponent === 31) {
+        return fraction ? NaN : sign * Infinity;
+    }
+
+    return sign * Math.pow(2, exponent - 15) * (1 + fraction / 1024);
+}
+
 export class PaddleOCR {
     static STATUS = STATUS;
     constructor(manifestUrl, wasmBasePath, updateStatus) {
@@ -35,7 +76,8 @@ export class PaddleOCR {
             modelSource: false,
             providerFallback: false,
             warmupTensor: false,
-            firstDetectTiming: false
+            firstDetectTiming: false,
+            inputTypeAligned: false
         };
 
         // Hardening Patch v2.5: Pre-allocated buffer for zero-churn recognition
@@ -220,24 +262,26 @@ export class PaddleOCR {
             // Warm up Detection Model (960x960)
             const detShape = [1, 3, 960, 960];
             const detDummy = new ortRuntime.Tensor('float32', new Float32Array(1 * 3 * 960 * 960), detShape);
+            const detInputName = this.detSession.inputNames[0];
             const detFeeds = {};
-            detFeeds[this.detSession.inputNames[0]] = detDummy;
+            detFeeds[detInputName] = this._alignInputTensorType(this.detSession, detInputName, detDummy);
             await this.detSession.run(detFeeds);
 
             // Warm up Recognition Model (48x320)
             const recShape = [1, 3, 48, 320];
             const recDummy = new ortRuntime.Tensor('float32', new Float32Array(1 * 3 * 48 * 320), recShape);
+            const recInputName = this.recSession.inputNames[0];
             const recFeeds = {};
-            recFeeds[this.recSession.inputNames[0]] = recDummy;
+            recFeeds[recInputName] = this._alignInputTensorType(this.recSession, recInputName, recDummy);
             if (typeof window !== 'undefined' && window.VNOCR_DEBUG && !this._diagLogged.warmupTensor) {
                 this._diagLogged.warmupTensor = true;
                 console.debug('[ENGINE] PaddleOCR warm-up tensor metadata', {
-                    detInputName: this.detSession.inputNames[0],
+                    detInputName,
                     detShape,
-                    detType: detDummy.type,
-                    recInputName: this.recSession.inputNames[0],
+                    detType: detFeeds[detInputName]?.type || detDummy.type,
+                    recInputName,
                     recShape,
-                    recType: recDummy.type
+                    recType: recFeeds[recInputName]?.type || recDummy.type
                 });
             }
             await this.recSession.run(recFeeds);
@@ -263,9 +307,11 @@ export class PaddleOCR {
             if (!tensorData) return { boxes: [] };
             
             const inputTensor = new ortRuntime.Tensor('float32', tensorData, [1, 3, h, w]);
+            const detInputName = this.detSession.inputNames[0];
+            const alignedInputTensor = this._alignInputTensorType(this.detSession, detInputName, inputTensor);
 
             const feeds = {};
-            feeds[this.detSession.inputNames[0]] = inputTensor;
+            feeds[detInputName] = alignedInputTensor;
 
             const output = await this.detSession.run(feeds);
             const outputName = this.detSession.outputNames[0];
@@ -279,7 +325,7 @@ export class PaddleOCR {
 
             
             // Memory Cleanup
-            feeds[this.detSession.inputNames[0]] = null;
+            feeds[detInputName] = null;
 
             if (typeof window !== 'undefined' && window.VNOCR_DEBUG && !this._diagLogged.firstDetectTiming) {
                 this._diagLogged.firstDetectTiming = true;
@@ -422,10 +468,12 @@ export class PaddleOCR {
             if (!tensorData) return { text: '' };
             
             const inputTensor = new ortRuntime.Tensor('float32', tensorData, [1, 3, h, w]);
+            const recInputName = this.recSession.inputNames[0];
+            const alignedInputTensor = this._alignInputTensorType(this.recSession, recInputName, inputTensor);
 
             // Task 1: Profile rec inference
             const recStart = performance.now();
-            const output = await this.recognizeLines([inputTensor]);
+            const output = await this.recognizeLines([alignedInputTensor]);
             const recTime = performance.now() - recStart;
             console.log(`[PROFILE] PaddleOCR rec inference: ${recTime.toFixed(1)}ms`);
             
@@ -497,6 +545,48 @@ export class PaddleOCR {
             console.error("PaddleOCR: CTC Decoding Error:", err);
             return { text: '' };
         }
+    }
+
+    _alignInputTensorType(session, inputName, inputTensor) {
+        const normalizeType = (type) => String(type || '')
+            .trim()
+            .toLowerCase()
+            .replace(/^tensor\((.+)\)$/, '$1');
+
+        const expectedType = normalizeType(session?.inputMetadata?.[inputName]?.type);
+        const actualType = normalizeType(inputTensor?.type);
+
+        if (!expectedType || !actualType || expectedType === actualType) {
+            return inputTensor;
+        }
+
+        if ((expectedType === 'float16' || expectedType === 'half') && (actualType === 'float32' || actualType === 'float')) {
+            const source = inputTensor.data;
+            const aligned = new Uint16Array(source.length);
+            for (let i = 0; i < source.length; i++) {
+                aligned[i] = float32ToFloat16Bits(source[i]);
+            }
+            if (typeof window !== 'undefined' && window.VNOCR_DEBUG && !this._diagLogged.inputTypeAligned) {
+                this._diagLogged.inputTypeAligned = true;
+                console.debug('[ENGINE] PaddleOCR aligned input tensor type', { inputName, from: actualType, to: expectedType });
+            }
+            return new globalThis.ort.Tensor('float16', aligned, inputTensor.dims);
+        }
+
+        if ((expectedType === 'float32' || expectedType === 'float') && (actualType === 'float16' || actualType === 'half')) {
+            const source = inputTensor.data;
+            const aligned = new Float32Array(source.length);
+            for (let i = 0; i < source.length; i++) {
+                aligned[i] = float16BitsToFloat32(source[i]);
+            }
+            if (typeof window !== 'undefined' && window.VNOCR_DEBUG && !this._diagLogged.inputTypeAligned) {
+                this._diagLogged.inputTypeAligned = true;
+                console.debug('[ENGINE] PaddleOCR aligned input tensor type', { inputName, from: actualType, to: expectedType });
+            }
+            return new globalThis.ort.Tensor('float32', aligned, inputTensor.dims);
+        }
+
+        return inputTensor;
     }
 
     async dispose() {
