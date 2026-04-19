@@ -6,6 +6,7 @@
   "scripts": {
     "test": "node scripts/run_tests.js",
     "test:engine": "node scripts/test_engine_progress_updates.js && node scripts/test_engine_selector.js",
+    "bump:version": "node scripts/bump_version.js",
     "audit:braces": "node scripts/check_braces.js",
     "audit:dom": "node scripts/audit_dom_integrity.js",
     "audit:static": "node scripts/static_audit.js",

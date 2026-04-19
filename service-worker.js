@@ -3,7 +3,7 @@ const CACHE_NAME = 'personalocr-v3.8.5-gold-patch1';
 /**
  * Normalize URL to pathname-only for consistent cache keys.
  * Strips query parameters to align install-time and runtime caching.
- * @param {string} urlString - Full URL (may include query params like ?v=3.8.4)
+ * @param {string} urlString - Full URL (may include query params like ?v=3.8.5)
  * @returns {string} Normalized pathname
  */
 function normalizeUrl(urlString) {
