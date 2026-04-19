@@ -1,6 +1,7 @@
-window.VNOCR_BUILD = "production";
+window.VNOCR_BUILD = "3.8.5";
 window.VNOCR_DEBUG = false; // Set to true to enable high-fidelity lifecycle tracing
 const logTrace = (msg) => { if (window.VNOCR_DEBUG) console.log(`[TRACE] ${msg}`); };
+window.logTrace = logTrace;
 
 /**
  * Diagnostics: Memory Usage Trace (Gold v3.8)
@@ -85,19 +86,19 @@ import {
     resetSettings
 } from './settings.js';
 
-import { STATUS } from './js/core/status.js?v=3.8.4';
-import { createEngineManager } from './js/core/engine_manager.js?v=3.8.4';
-import { captureFrame, preprocessForEngine, pickBestMultiPassResult, weightedScore, findBestMultiPassIndex } from './js/core/capture_pipeline.js?v=3.8.4';
-import { updateCaptureButtonState, setOCRStatus } from './js/ui/ui_controller.js?v=3.8.4';
+import { STATUS } from './js/core/status.js?v=3.8.5';
+import { createEngineManager } from './js/core/engine_manager.js?v=3.8.5';
+import { captureFrame, preprocessForEngine, pickBestMultiPassResult, weightedScore, findBestMultiPassIndex } from './js/core/capture_pipeline.js?v=3.8.5';
+import { updateCaptureButtonState, setOCRStatus } from './js/ui/ui_controller.js?v=3.8.5';
 
 import {
     runPaddleOCR
-} from './js/paddle/paddle_core.js?v=3.8.4';
+} from './js/paddle/paddle_core.js?v=3.8.5';
 
-import { TesseractEngine } from './js/tesseract/tesseract_engine.js?v=3.8.4';
-import { PaddleOCR } from './js/paddle/paddle_engine.js?v=3.8.4';
-import { MangaOCREngine } from './js/manga/manga_engine.js?v=3.8.4';
-import { isWebGPUSupported as vnIsWebGPUSupported } from './js/onnx/onnx_support.js?v=3.8.4';
+import { TesseractEngine } from './js/tesseract/tesseract_engine.js?v=3.8.5';
+import { PaddleOCR } from './js/paddle/paddle_engine.js?v=3.8.5';
+import { MangaOCREngine } from './js/manga/manga_engine.js?v=3.8.5';
+import { isWebGPUSupported as vnIsWebGPUSupported } from './js/onnx/onnx_support.js?v=3.8.5';
 
 window.STATUS = STATUS;
 window.setOCRStatus = setOCRStatus;

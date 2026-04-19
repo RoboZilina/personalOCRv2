@@ -4,14 +4,13 @@
  * Gold v3.8 Compliance
  */
 
-import { STATUS } from '../core/status.js?v=3.8.4';
+import { STATUS } from '../core/status.js?v=3.8.5';
 import { getSetting } from '../../settings.js';
 
 // ==========================================
 // Progress Pill v2: Unified State Machine (Gold v3.8)
 // ==========================================
 let statusSettleTimer = null;
-let statusTransitionLock = false;
 
 /**
  * Updates the capture button state based on engine readiness and processing status.

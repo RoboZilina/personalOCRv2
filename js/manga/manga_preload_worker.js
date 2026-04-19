@@ -1,5 +1,5 @@
-import '/js/onnx/ort.min.js?v=3.8.4';
-import { MangaOCREngine } from './manga_engine.js?v=3.8.4';
+import '/js/onnx/ort.min.js?v=3.8.5';
+import { MangaOCREngine } from './manga_engine.js?v=3.8.5';
 
 self.onmessage = async (e) => {
     const { command, id } = e.data;

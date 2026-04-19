@@ -1,4 +1,4 @@
-const CACHE_NAME = 'personalocr-v3.8.4-gold-patch3';
+const CACHE_NAME = 'personalocr-v3.8.5-gold-patch1';
 
 /**
  * Normalize URL to pathname-only for consistent cache keys.
@@ -18,13 +18,13 @@ function normalizeUrl(urlString) {
 
 const ASSETS = [
   '/',
-  '/app.js?v=3.8.4',
+  '/app.js?v=3.8.5',
   '/index.html',
   '/icon-192.png',
   '/icon-512.png',
-  '/js/manga/manga_engine.js?v=3.8.4',
-  '/js/manga/manga_preload_worker.js?v=3.8.4',
-  '/js/onnx/onnx_support.js?v=3.8.4',
+  '/js/manga/manga_engine.js?v=3.8.5',
+  '/js/manga/manga_preload_worker.js?v=3.8.5',
+  '/js/onnx/onnx_support.js?v=3.8.5',
   '/js/onnx/ort-wasm-simd-threaded.jsep.mjs',
   '/js/onnx/ort-wasm-simd-threaded.jsep.wasm',
   '/js/onnx/ort-wasm-simd-threaded.wasm',
@@ -32,10 +32,10 @@ const ASSETS = [
   '/js/onnx/ort-wasm-threaded.wasm',
   '/js/onnx/ort-wasm.wasm',
   '/js/onnx/ort.min.js',
-  '/js/paddle/paddle_core.js?v=3.8.4',
-  '/js/paddle/paddle_engine.js?v=3.8.4',
-  '/js/paddle/paddle_preload_worker.js?v=3.8.4',
-  '/js/tesseract/tesseract_engine.js?v=3.8.4',
+  '/js/paddle/paddle_core.js?v=3.8.5',
+  '/js/paddle/paddle_engine.js?v=3.8.5',
+  '/js/paddle/paddle_preload_worker.js?v=3.8.5',
+  '/js/tesseract/tesseract_engine.js?v=3.8.5',
   '/js/tesseract/worker.min.js',
   '/js/tesseract/tesseract.min.js',
   '/js/tesseract/core/tesseract-core.wasm',
@@ -46,7 +46,7 @@ const ASSETS = [
   '/js/tesseract/core/tesseract-core-simd.wasm.js',
   '/js/tesseract/core/tesseract-core-simd-lstm.wasm',
   '/js/tesseract/core/tesseract-core-simd-lstm.wasm.js',
-  '/js/utils/fetch_utils.js?v=3.8.4',
+  '/js/utils/fetch_utils.js?v=3.8.5',
   '/manifest.json',
   '/models/manga/config.json',
   '/models/manga/manifest.json',
@@ -54,8 +54,8 @@ const ASSETS = [
   '/models/manga/vocab.json',
   '/models/paddle/japan_dict.txt',
   '/models/paddle/manifest.json',
-  '/settings.js?v=3.8.4',
-  '/styles.css?v=3.8.4'
+  '/settings.js?v=3.8.5',
+  '/styles.css?v=3.8.5'
 ];
 
 // 1. Installs Assets (Cache-First)

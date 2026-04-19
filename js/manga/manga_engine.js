@@ -1,6 +1,6 @@
-import { isWebGPUSupported } from '../onnx/onnx_support.js?v=3.8.4';
-import { fetchWithProgress } from '../utils/fetch_utils.js?v=3.8.4';
-import { STATUS } from '../core/status.js?v=3.8.4';
+import { isWebGPUSupported } from '../onnx/onnx_support.js?v=3.8.5';
+import { fetchWithProgress } from '../utils/fetch_utils.js?v=3.8.5';
+import { STATUS } from '../core/status.js?v=3.8.5';
 
 /**
  * MangaOCR Engine v3.8.4

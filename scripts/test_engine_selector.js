@@ -5,43 +5,42 @@
  */
 
 // Mock DOM and settings
-global.document = {
-    getElementById: (id) => {
-        const elements = {
-            'model-selector': { 
-                value: 'tesseract',
-                addEventListener: function(event, handler) {
-                    if (event === 'change') {
-                        this._changeHandler = handler;
-                    }
-                },
-                _changeHandler: null
-            },
-            'mode-selector': { value: 'default_mini', disabled: false },
-            'auto-capture-toggle': { checked: true },
-            'upscale-slider': { value: 2.0 },
-            'upscale-val': { textContent: '' },
-            'heavy-warning-checkbox': { checked: false },
-            'manga-warning-checkbox': { checked: false },
-            'paddle-modal': { classList: { add: () => {}, remove: () => {} } },
-            'manga-modal': { classList: { add: () => {}, remove: () => {} } },
-            'startup-banner': { classList: { add: () => {}, remove: () => {} } },
-            'paddle-continue': { addEventListener: () => {} },
-            'paddle-cancel': { addEventListener: () => {} },
-            'manga-continue': { addEventListener: () => {} },
-            'manga-cancel': { addEventListener: () => {} },
-            'banner-switch-default': { addEventListener: () => {} },
-            'banner-nocall-checkbox': { addEventListener: () => {}, checked: false },
-            'banner-close': { addEventListener: () => {} },
-            'vn-video': {},
-            'selection-overlay': {},
-            'history-content': {},
-            'debug-crop-img': { style: {} },
-            'latest-text': { textContent: '' },
-            'ocr-status': { textContent: '' }
-        };
-        return elements[id] || null;
+const elements = {
+    'model-selector': {
+        value: 'tesseract',
+        addEventListener: function(event, handler) {
+            if (event === 'change') {
+                this._changeHandler = handler;
+            }
+        },
+        _changeHandler: null
     },
+    'mode-selector': { value: 'default_mini', disabled: false },
+    'auto-capture-toggle': { checked: true },
+    'upscale-slider': { value: 2.0 },
+    'upscale-val': { textContent: '' },
+    'heavy-warning-checkbox': { checked: false },
+    'manga-warning-checkbox': { checked: false },
+    'paddle-modal': { classList: { add: () => {}, remove: () => {} } },
+    'manga-modal': { classList: { add: () => {}, remove: () => {} } },
+    'startup-banner': { classList: { add: () => {}, remove: () => {} } },
+    'paddle-continue': { addEventListener: () => {} },
+    'paddle-cancel': { addEventListener: () => {} },
+    'manga-continue': { addEventListener: () => {} },
+    'manga-cancel': { addEventListener: () => {} },
+    'banner-switch-default': { addEventListener: () => {} },
+    'banner-nocall-checkbox': { addEventListener: () => {}, checked: false },
+    'banner-close': { addEventListener: () => {} },
+    'vn-video': {},
+    'selection-overlay': {},
+    'history-content': {},
+    'debug-crop-img': { style: {} },
+    'latest-text': { textContent: '' },
+    'ocr-status': { textContent: '' }
+};
+
+global.document = {
+    getElementById: (id) => elements[id] || null,
     querySelector: (sel) => {
         if (sel === '#model-selector') {
             return global.document.getElementById('model-selector');
