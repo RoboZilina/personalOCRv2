@@ -232,6 +232,20 @@ export class MangaOCREngine {
         return new ort.Tensor('float32', floatData, [1, 3, d, d]);
     }
 
+    _alignDecoderHiddenStateType(encoderHiddenStates) {
+        const expectedType = this.decoderSession?.inputMetadata?.encoder_hidden_states?.type;
+        if (!expectedType || expectedType === encoderHiddenStates.type) {
+            return encoderHiddenStates;
+        }
+
+        const expectsFloat32 = expectedType === 'float32' || expectedType === 'float';
+        if (expectsFloat32 && encoderHiddenStates.type === 'float16') {
+            return new ort.Tensor('float32', Float32Array.from(encoderHiddenStates.data), encoderHiddenStates.dims);
+        }
+
+        return encoderHiddenStates;
+    }
+
 
     /**
      * Executes the VED OCR model on the given canvas image logic.
@@ -253,7 +267,7 @@ export class MangaOCREngine {
             const encShape = [1, 3, 224, 224];
             const encDummy = new ort.Tensor('float32', new Float32Array(1 * 3 * 224 * 224), encShape);
             const encoderResults = await this.encoderSession.run({ pixel_values: encDummy });
-            const encoderHiddenStates = encoderResults.last_hidden_state;
+            const encoderHiddenStates = this._alignDecoderHiddenStateType(encoderResults.last_hidden_state);
 
             // Warm up Decoder (one step)
             // input_ids: [1, 1], encoder_hidden_states: [1, 197, 768] (standard ViT output)
@@ -290,7 +304,7 @@ export class MangaOCREngine {
             const encoderTime = performance.now() - encoderStart;
             console.log(`[PROFILE] MangaOCR encoder: ${encoderTime.toFixed(1)}ms`);
             
-            const encoderHiddenStates = encoderResults.last_hidden_state;
+            const encoderHiddenStates = this._alignDecoderHiddenStateType(encoderResults.last_hidden_state);
 
             let generatedTokens = [this.BOS_TOKEN_ID];
 
