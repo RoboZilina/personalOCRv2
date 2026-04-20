@@ -1386,6 +1386,7 @@ function showMultiPassOverlay(results, finalText) {
 
     document.body.appendChild(div);
 }
+window.showMultiPassOverlay = showMultiPassOverlay;
 
 function removeMultiPassOverlay() {
     const old = document.getElementById('multipass-overlay');
@@ -1434,6 +1435,7 @@ function addOCRResultToUI(text, confidence = null) {
         localStorage.setItem('vn-ocr-public-history-v2', JSON.stringify(items));
     }
 }
+window.addOCRResultToUI = addOCRResultToUI;
 
 function openUserGuide() {
     const helpModal = document.getElementById('help-modal');
