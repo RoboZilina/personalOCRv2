@@ -1861,6 +1861,30 @@ async function globalInitialize() {
     // We strictly prioritize Tesseract to ensure the UI is functional within <500ms.
     const savedEngine = getSetting('ocrEngine') || 'tesseract';
 
+    if (savedEngine === 'paddle') {
+        // Immediately show Paddle as selected and loading
+        if (engineSelector) {
+            engineSelector.value = 'paddle';
+        }
+
+        // Mark engine as not ready and update capture button
+        engineReady = false;
+        window.engineReady = false;
+        updateCaptureButtonState();
+
+        // Show a loading status for Paddle
+        if (typeof setOCRStatus === 'function') {
+            setOCRStatus('loading', 'PaddleOCR — Loading…', 0, 'paddle');
+        }
+
+        // Yield one frame so the UI can paint before heavy load
+        requestAnimationFrame(() => {
+            switchEngineModular('paddle');
+        });
+
+        return;
+    }
+
     try {
         // Step 1: Force immediate Tesseract readiness (anchors the interactive UI)
         await switchEngineModular('tesseract');
