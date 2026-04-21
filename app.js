@@ -1856,6 +1856,10 @@ async function globalInitialize() {
         setOCRStatus(state, text, progress, engineId);
     });
 
+    initEventListeners();
+    initEventListeners_Part1();
+    initEventListeners_Part2();
+
     // 5. Silicon Seal Registry Initialization
     // We strictly prioritize Tesseract to ensure the UI is functional within <500ms.
     const savedEngine = getSetting('ocrEngine') || 'tesseract';
@@ -1984,9 +1988,6 @@ async function globalInitialize() {
     updateCaptureButtonState();
 
     // 6. Final Sync & Listeners
-    initEventListeners();
-    initEventListeners_Part1();
-    initEventListeners_Part2();
 
     // Service Worker Registry
     if ('serviceWorker' in navigator) {
