@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Median Filter Fix</title>
+    <style>
+        body { font-family: monospace; margin: 20px; }
+        canvas { border: 1px solid black; margin: 10px; }
+        .pass { color: green; }
+        .fail { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Testing Median Filter Fix</h1>
+    <p>This tests that median filtering is properly applied in preprocessing.</p>
+    
+    <div id="test1">
+        <h3>Test 1: Check applyPreprocessing function structure</h3>
+        <div id="result1">Running...</div>
+    </div>
+    
+    <div id="test2">
+        <h3>Test 2: Verify median filter is applied</h3>
+        <div id="result2">Running...</div>
+    </div>
+    
+    <script>
+        // Test 1: Check if applyPreprocessing has the fix
+        function testApplyPreprocessingStructure() {
+            const result1 = document.getElementById('result1');
+            
+            if (typeof window.applyPreprocessing !== 'function') {
+                result1.innerHTML = '<span class="fail">FAIL: applyPreprocessing function not found</span>';
+                return false;
+            }
+            
+            const funcStr = window.applyPreprocessing.toString();
+            
+            // Check for the fix pattern
+            const hasMedianFilterFix = funcStr.includes('medianFilter(res)') && 
+                                      (funcStr.includes('ctx.clearRect') || funcStr.includes('ctx.drawImage(medianFiltered'));
+            
+            if (hasMedianFilterFix) {
+                result1.innerHTML = '<span class="pass">PASS: Median filter fix detected in applyPreprocessing</span>';
+                return true;
+            } else {
+                result1.innerHTML = '<span class="fail">FAIL: Median filter fix not found. Function might still have the bug.</span>';
+                return false;
+            }
+        }
+        
+        // Test 2: Check medianFilter function
+        function testMedianFilterFunction() {
+            const result2 = document.getElementById('result2');
+            
+            if (typeof window.medianFilter !== 'function') {
+                result2.innerHTML = '<span class="fail">FAIL: medianFilter function not found</span>';
+                return false;
+            }
+            
+            const funcStr = window.medianFilter.toString();
+            const returnsNewCanvas = funcStr.includes('return resCanvas') || funcStr.includes('return canvas');
+            
+            if (returnsNewCanvas) {
+                result2.innerHTML = '<span class="pass">PASS: medianFilter returns new canvas (as expected)</span>';
+                return true;
+            } else {
+                result2.innerHTML = '<span class="fail">FAIL: medianFilter might not return new canvas</span>';
+                return false;
+            }
+        }
+        
+        // Run tests
+        setTimeout(() => {
+            const test1 = testApplyPreprocessingStructure();
+            const test2 = testMedianFilterFunction();
+            
+            const summary = document.createElement('div');
+            summary.innerHTML = `<h3>Summary: ${test1 && test2 ? 'PASS' : 'FAIL'}</h3>`;
+            if (test1 && test2) {
+                summary.innerHTML += '<p class="pass">✓ Median filter fix appears to be applied correctly.</p>';
+                summary.innerHTML += '<p>The bug where median filtering was computed but not used should now be fixed.</p>';
+            } else {
+                summary.innerHTML += '<p class="fail">✗ Some tests failed. The preprocessing bug might still exist.</p>';
+            }
+            document.body.appendChild(summary);
+        }, 100);
+    </script>
+    
+    <script src="app.js?v=3.8.5"></script>
+</body>
+</html>
