@@ -1832,6 +1832,11 @@ async function globalInitialize() {
     initHelpModal();
     initSettings();
     
+    // 3.5 Event Listeners - Attach early so buttons work regardless of engine init
+    initEventListeners();
+    initEventListeners_Part1();
+    initEventListeners_Part2();
+    
     // Start splash hint rotation after DOM is ready
     startSplashHintRotation();
     
@@ -1984,10 +1989,7 @@ async function globalInitialize() {
     window.engineReady = engineReady;
     updateCaptureButtonState();
 
-    // 6. Final Sync & Listeners
-    initEventListeners();
-    initEventListeners_Part1();
-    initEventListeners_Part2();
+    // 6. Final Sync (Event listeners already attached earlier)
 
     // Service Worker Registry
     if ('serviceWorker' in navigator) {
