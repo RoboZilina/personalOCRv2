@@ -25,7 +25,7 @@ const logMemoryUsage = (context = "") => {
     const now = Date.now();
     if (now - lastMemoryLog < MEMORY_LOG_THROTTLE_MS) return;
     lastMemoryLog = now;
-
+    
     const stats = getMemoryStats();
     if (stats) {
         console.debug(`[MEMORY] ${context} Used: ${stats.used}MB | Total: ${stats.total}MB | Limit: ${stats.limit}MB`);
@@ -34,7 +34,7 @@ const logMemoryUsage = (context = "") => {
 
 const getMemoryStats = () => {
     try {
-        if (typeof performance !== 'undefined' && performance.memory &&
+        if (typeof performance !== 'undefined' && performance.memory && 
             typeof performance.memory.usedJSHeapSize === 'number' &&
             typeof performance.memory.totalJSHeapSize === 'number' &&
             typeof performance.memory.jsHeapSizeLimit === 'number') {
@@ -133,7 +133,7 @@ let splashHintInterval = null;
 function startSplashHintRotation() {
     const hintEl = document.getElementById("splash-hint");
     if (!hintEl) return;
-
+    
     // Clear any existing interval to prevent duplicates
     if (splashHintInterval) {
         clearInterval(splashHintInterval);
@@ -177,7 +177,7 @@ startSplashHintRotation();
 setTimeout(() => {
     const splash = document.getElementById('startup-splash');
     if (!splash) return;
-
+    
     // Only trigger if the splash hasn't been dismissed by the main logic
     if (!splash.dataset.dismissed) {
         console.warn("[INIT-FAILSAFE] 30s Safety timeout triggered. Standard initialization exceeded expected window.");
@@ -274,7 +274,7 @@ async function switchEngineModular(id) {
 
     try {
         logTrace(`Switching engine to: ${id}`);
-
+        
         // 1) UI State Sync
         const mangaNote = document.getElementById('manga-note');
         if (mangaNote) {
@@ -814,6 +814,8 @@ function checkAutoCapture() {
     const pix = scoutCtx.getImageData(0, 0, 32, 32).data;
     const currentData = new Uint32Array(pix.buffer);
 
+    // Clear any pending stability timer before making new decisions
+    clearTimeout(stabilityTimer);
     if (autoToggle?.parentElement) autoToggle.parentElement.classList.remove('active');
 
     // 2. Only run comparison and stability triggers if we aren't already busy AND engine is ready
@@ -821,14 +823,13 @@ function checkAutoCapture() {
     if (!window.isProcessing && EngineManager.isReady() && lastScoutData) {
         let diffPixels = 0;
         for (let i = 0; i < currentData.length; i++) { if (currentData[i] !== lastScoutData[i]) diffPixels++; }
-
+        
         if (diffPixels > 10) {
-            clearTimeout(stabilityTimer);
             if (autoToggle.parentElement) autoToggle.parentElement.classList.add('active');
-
+            
             stabilityTimer = setTimeout(() => {
                 if (autoToggle?.parentElement) autoToggle.parentElement.classList.remove('active');
-
+                
                 // Re-verify conditions after 800ms delay
                 if (getSetting('autoCapture') && !window.isProcessing && EngineManager.isReady()) {
                     captureFrame(activeSelection);
@@ -1830,10 +1831,10 @@ async function globalInitialize() {
     // 3. UI Integrity Setup
     initHelpModal();
     initSettings();
-
+    
     // Start splash hint rotation after DOM is ready
     startSplashHintRotation();
-
+    
     if (typeof updatePerformanceStatus === 'function') {
         updatePerformanceStatus();
     }
@@ -1855,10 +1856,6 @@ async function globalInitialize() {
     EngineManager.onStatusChange(({ state, text, progress, engineId }) => {
         setOCRStatus(state, text, progress, engineId);
     });
-
-    initEventListeners();
-    initEventListeners_Part1();
-    initEventListeners_Part2();
 
     // 5. Silicon Seal Registry Initialization
     // We strictly prioritize Tesseract to ensure the UI is functional within <500ms.
@@ -1891,7 +1888,7 @@ async function globalInitialize() {
     try {
         // Step 1: Force immediate Tesseract readiness (anchors the interactive UI)
         await switchEngineModular('tesseract');
-
+        
         // Step 2: Cosmetic splash dismissal (Branding pass complete)
         setTimeout(() => dismissSplashScreen(), 1000);
 
@@ -1988,6 +1985,9 @@ async function globalInitialize() {
     updateCaptureButtonState();
 
     // 6. Final Sync & Listeners
+    initEventListeners();
+    initEventListeners_Part1();
+    initEventListeners_Part2();
 
     // Service Worker Registry
     if ('serviceWorker' in navigator) {
