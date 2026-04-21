@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Import Diagnostic Test</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        .log { background: #f5f5f5; border: 1px solid #ddd; padding: 10px; margin: 10px 0; font-family: monospace; white-space: pre-wrap; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Import Diagnostic Test</h1>
+    <div class="log" id="log">Testing imports...</div>
+    
+    <script type="module">
+        const log = document.getElementById('log');
+        
+        async function testImport(url) {
+            try {
+                const module = await import(url);
+                log.innerHTML += `<span class="success">✓ ${url}: Loaded successfully</span><br>`;
+                return true;
+            } catch (error) {
+                log.innerHTML += `<span class="error">✗ ${url}: ${error.message}</span><br>`;
+                return false;
+            }
+        }
+        
+        // Test critical imports
+        const importsToTest = [
+            './settings.js',
+            './js/core/status.js',
+            './js/core/engine_manager.js',
+            './js/core/capture_pipeline.js',
+            './js/ui/ui_controller.js',
+            './js/paddle/paddle_core.js',
+            './js/tesseract/tesseract_engine.js',
+            './js/paddle/paddle_engine.js',
+            './js/manga/manga_engine.js',
+            './js/onnx/onnx_support.js'
+        ];
+        
+        async function runTests() {
+            log.innerHTML += 'Starting import tests...<br>';
+            
+            for (const importUrl of importsToTest) {
+                await testImport(importUrl);
+            }
+            
+            log.innerHTML += '<br>Testing app.js as module...<br>';
+            try {
+                // Try to import app.js itself
+                const appModule = await import('./app.js');
+                log.innerHTML += `<span class="success">✓ app.js: Loaded as module</span><br>`;
+                
+                // Check if key functions exist
+                if (typeof appModule.globalInitialize === 'function') {
+                    log.innerHTML += `<span class="success">✓ app.js: globalInitialize function exists</span><br>`;
+                } else {
+                    log.innerHTML += `<span class="error">✗ app.js: globalInitialize not found</span><br>`;
+                }
+            } catch (error) {
+                log.innerHTML += `<span class="error">✗ app.js: ${error.message}</span><br>`;
+            }
+            
+            log.innerHTML += '<br>Diagnostic complete.<br>';
+        }
+        
+        runTests();
+    </script>
+</body>
+</html>

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Button Debug Test</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        .test-btn { padding: 10px 20px; margin: 10px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .test-btn:hover { background: #0056b3; }
+        .log { background: #f5f5f5; border: 1px solid #ddd; padding: 10px; margin: 10px 0; font-family: monospace; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <h1>Button Debug Test</h1>
+    
+    <div>
+        <button class="test-btn" id="test-btn-1">Test Button 1 (Vanilla JS)</button>
+        <button class="test-btn" id="test-btn-2">Test Button 2 (Inline onclick)</button>
+    </div>
+    
+    <div class="log" id="log">Log will appear here...</div>
+    
+    <script>
+        const log = document.getElementById('log');
+        
+        // Test 1: Vanilla JS event listener
+        document.getElementById('test-btn-1').addEventListener('click', function() {
+            log.textContent += 'Test Button 1 clicked!\n';
+            console.log('Test Button 1 clicked');
+        });
+        
+        // Test 2: Inline onclick
+        document.getElementById('test-btn-2').onclick = function() {
+            log.textContent += 'Test Button 2 clicked!\n';
+            console.log('Test Button 2 clicked');
+        };
+        
+        // Test if app.js is loading
+        log.textContent += 'Script loaded at: ' + new Date().toLocaleTimeString() + '\n';
+        
+        // Check if globalInitialize exists
+        if (typeof globalInitialize === 'function') {
+            log.textContent += 'globalInitialize function exists\n';
+        } else {
+            log.textContent += 'globalInitialize function NOT FOUND\n';
+        }
+        
+        // Check if initEventListeners exists
+        if (typeof initEventListeners === 'function') {
+            log.textContent += 'initEventListeners function exists\n';
+        } else {
+            log.textContent += 'initEventListeners function NOT FOUND\n';
+        }
+        
+        // Check for splash screen
+        const splash = document.getElementById('startup-splash');
+        if (splash) {
+            log.textContent += 'Splash screen found: ' + splash.className + '\n';
+            log.textContent += 'Splash screen style.display: ' + splash.style.display + '\n';
+            log.textContent += 'Splash screen computed visibility: ' + getComputedStyle(splash).visibility + '\n';
+            log.textContent += 'Splash screen computed pointer-events: ' + getComputedStyle(splash).pointerEvents + '\n';
+        } else {
+            log.textContent += 'Splash screen NOT FOUND\n';
+        }
+    </script>
+    
+    <!-- Load the actual app.js to test -->
+    <script src="./js/onnx/ort.min.js"></script>
+    <script src="./js/tesseract/tesseract.min.js"></script>
+    <script type="module" src="app.js?v=3.8.5"></script>
+</body>
+</html>
