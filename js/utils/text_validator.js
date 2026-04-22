@@ -29,6 +29,15 @@ const JAPANESE_RANGES = [
 const JP_PUNCTUATION = '、。・「」『』〜';
 const JP_PUNCTUATION_SET = new Set(JP_PUNCTUATION);
 
+// Additional full‑width punctuation and symbols used in Japanese text
+const EXTRA_JP_CHARS = new Set([
+    'ー', '〜', '！', '？', '：', '；', '（', '）', '［', '］', '｛', '｝'
+]);
+
+const PROTECTED_ABBREVIATIONS = new Set([
+    'PC', 'CPU', 'GPU', 'USB', 'AI', 'VR', 'RAM', 'ROM'
+]);
+
 /**
  * Check if a character belongs to any Japanese script or punctuation.
  */
@@ -38,6 +47,8 @@ function isJapaneseChar(ch) {
     for (const [lo, hi] of JAPANESE_RANGES) {
         if (cp >= lo && cp <= hi) return true;
     }
+    // Check extra Japanese characters (full‑width punctuation, symbols)
+    if (EXTRA_JP_CHARS.has(ch)) return true;
     // Check punctuation
     if (JP_PUNCTUATION_SET.has(ch)) return true;
     return false;
@@ -166,13 +177,23 @@ function applySpacingRules(text) {
     
     for (let i = 0; i < chars.length; i++) {
         const ch = chars[i];
+
+        // Detect protected abbreviations
+        const ahead2 = chars.slice(i, i + 2);
+        if (PROTECTED_ABBREVIATIONS.has(ahead2.toUpperCase())) {
+            result += ahead2;
+            i++; // skip next character
+            prevType = 'latin';
+            continue;
+        }
+
         let type = 'other';
         if (isJapaneseChar(ch)) {
             type = 'jp';
         } else if (/[A-Za-z0-9]/.test(ch)) {
             type = 'latin';
         }
-        
+
         // Insert space between JP and Latin (or Latin and JP) when missing
         if (prevType && prevType !== type &&
             ((prevType === 'jp' && type === 'latin') || (prevType === 'latin' && type === 'jp'))) {
@@ -182,7 +203,7 @@ function applySpacingRules(text) {
                 result += ' ';
             }
         }
-        
+
         result += ch;
         prevType = type;
     }
@@ -220,6 +241,11 @@ function applyEnglishFixes(text) {
     const fixed = segments.map(seg => {
         // If segment contains only ASCII characters (including spaces, punctuation)
         if (!/[^\x00-\x7F]/.test(seg)) {
+            // Skip URLs, filenames, version numbers
+            if (/https?:\/\//.test(seg)) return seg;
+            if (/\w+\.\w+/.test(seg)) return seg;
+            if (/\d+\.\d+/.test(seg)) return seg;
+
             // Apply substitutions only to digits and letter pairs
             let s = seg;
             // 0 → O inside words (but not at boundaries? we'll do global)
@@ -247,8 +273,16 @@ function applyEnglishFixes(text) {
 function vnSpecificCleanup(text) {
     let cleaned = text;
     // Remove stray ASCII after Japanese (pattern: Japanese text followed by ASCII garbage at line end)
-    // We'll remove any ASCII-only trailing characters after the last Japanese char.
-    // This is complex; we'll implement later.
+    // Find the last Japanese character index
+    const lastJP = [...cleaned].map((ch, i) => isJapaneseChar(ch) ? i : -1).filter(i => i >= 0).pop();
+    if (lastJP !== undefined) {
+        // Examine characters after lastJP
+        const after = cleaned.slice(lastJP + 1);
+        // If after consists only of ASCII non‑letter characters (digits, symbols, punctuation, spaces), remove it
+        if (after && /^[^A-Za-z]*$/.test(after)) {
+            cleaned = cleaned.slice(0, lastJP + 1);
+        }
+    }
     
     // Remove trailing punctuation clusters (e.g., です。。)
     cleaned = cleaned.replace(/([。、！？])\1+/g, '$1');
