@@ -113,7 +113,11 @@ function removeGarbage(text) {
     cleaned = cleaned.replace(/[\u2460-\u24FF]/g, '');
     
     // Remove isolated ASCII letters (single letters not part of a word)
-    cleaned = cleaned.replace(/(?<![A-Za-z])[A-Za-z](?![A-Za-z])/g, '');
+    // Only apply if the text contains Japanese characters (conservative)
+    const hasJapanese = [...text].some(ch => isJapaneseChar(ch));
+    if (hasJapanese) {
+        cleaned = cleaned.replace(/(?<![A-Za-z0-9])[A-Za-z](?![A-Za-z0-9])/g, '');
+    }
     
     // Remove stray ASCII after Japanese (e.g., 「ありがとう」| )
     // This is more complex; we'll handle later in VN‑specific cleanup.

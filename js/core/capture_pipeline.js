@@ -190,7 +190,7 @@ async function captureFrame(rect = null) {
         inferenceResults.forEach(result => {
             if (!result) return;
             const { text, confidence } = result;
-            if (confidence !== null) {
+            if (confidence !== null && !isNaN(confidence)) {
                 totalConfidence += confidence;
                 confidenceCount++;
             }

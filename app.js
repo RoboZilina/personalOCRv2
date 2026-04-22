@@ -1558,7 +1558,7 @@ function removeMultiPassOverlay() {
 
 
 function addOCRResultToUI(text, confidence = null) {
-    const confStr = (confidence !== null) ? ` [${Math.round(confidence)}%]` : '';
+    const confStr = (confidence !== null && !isNaN(confidence)) ? ` [${Math.round(confidence)}%]` : '';
     let clean;
     if (getSetting('vnTextCleanerEnabled')) {
         console.log('[VN Validator] UI cleaning enabled', text);
