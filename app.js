@@ -907,14 +907,13 @@ function checkAutoCapture() {
                 if (autoToggle?.parentElement) autoToggle.parentElement.classList.remove('active');
                 
                 // Re-verify conditions after 800ms delay
-                if (getSetting('autoCapture') && !window.isProcessing && EngineManager.isReady()) {
+                if (getSetting('autoCapture') && !window.isProcessing) {
                     console.log('[AUTO-CAPTURE] Stability timer fired - Triggering capture');
                     captureFrame(activeSelection);
                 } else {
                     console.log('[AUTO-CAPTURE] Stability timer fired but conditions not met:', {
                         autoCapture: getSetting('autoCapture'),
-                        isProcessing: window.isProcessing,
-                        engineReady: EngineManager.isReady()
+                        isProcessing: window.isProcessing
                     });
                 }
             }, 800);
