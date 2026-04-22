@@ -652,7 +652,7 @@ async function startCapture() {
         autoCaptureTimer = setInterval(checkAutoCapture, 500);
         
         // Log successful timer setup for debugging
-        console.log('[AUTO-CAPTURE] Timer started:', autoCaptureTimer ? 'YES' : 'NO');
+        if (getSetting('debug')) console.log('[AUTO-CAPTURE] Timer started:', autoCaptureTimer ? 'YES' : 'NO');
     } catch (err) {
         console.error('[CAPTURE] Error in startCapture:', err);
         if (videoStream) {
@@ -858,13 +858,15 @@ function setupSelectionOverlay() {
 function checkAutoCapture() {
     const activeSelection = selectionRect || window.lastValidSelectionRect;
     
-    // Always log selection state for diagnosis (not just in debug mode)
-    console.log('[AUTO-CAPTURE] Selection state:', {
-        selectionRect: selectionRect ? 'SET' : 'NULL',
-        lastValidSelectionRect: window.lastValidSelectionRect ? 'SET' : 'NULL',
-        activeSelection: activeSelection ? 'SET' : 'NULL',
-        autoToggleChecked: autoToggle?.checked ? 'ON' : 'OFF'
-    });
+    // Log selection state only in debug mode
+    if (getSetting('debug')) {
+        console.log('[AUTO-CAPTURE] Selection state:', {
+            selectionRect: selectionRect ? 'SET' : 'NULL',
+            lastValidSelectionRect: window.lastValidSelectionRect ? 'SET' : 'NULL',
+            activeSelection: activeSelection ? 'SET' : 'NULL',
+            autoToggleChecked: autoToggle?.checked ? 'ON' : 'OFF'
+        });
+    }
     
     // Debug logging - detailed logs only in debug mode
     if (getSetting('debug')) {
@@ -882,11 +884,13 @@ function checkAutoCapture() {
     
     // Critical failure checks - always log for debugging
     if (!autoToggle || !autoToggle.checked || !videoStream || !activeSelection) {
-        // Always log critical failures (not just in debug mode)
+        // Log critical failures (warnings always, logs only in debug)
         if (!autoToggle) console.warn('[AUTO-CAPTURE] Failed: autoToggle element not found');
-        if (autoToggle && !autoToggle.checked) console.log('[AUTO-CAPTURE] Auto-capture disabled (checkbox unchecked)');
-        if (!videoStream) console.log('[AUTO-CAPTURE] No active video stream');
-        if (!activeSelection) console.log('[AUTO-CAPTURE] No selection rectangle defined');
+        if (getSetting('debug')) {
+            if (autoToggle && !autoToggle.checked) console.log('[AUTO-CAPTURE] Auto-capture disabled (checkbox unchecked)');
+            if (!videoStream) console.log('[AUTO-CAPTURE] No active video stream');
+            if (!activeSelection) console.log('[AUTO-CAPTURE] No selection rectangle defined');
+        }
         return;
     }
 
@@ -897,11 +901,13 @@ function checkAutoCapture() {
     
     // Check video dimensions before proceeding
     if (!vnVideo || !vnVideo.videoWidth || !vnVideo.videoHeight) {
-        // Always log video readiness issues for debugging
-        console.log('[AUTO-CAPTURE] Video not ready:', {
-            width: vnVideo?.videoWidth,
-            height: vnVideo?.videoHeight
-        });
+        // Log video readiness issues only in debug mode
+        if (getSetting('debug')) {
+            console.log('[AUTO-CAPTURE] Video not ready:', {
+                width: vnVideo?.videoWidth,
+                height: vnVideo?.videoHeight
+            });
+        }
         return;
     }
     
@@ -917,19 +923,21 @@ function checkAutoCapture() {
         let diffPixels = 0;
         for (let i = 0; i < currentData.length; i++) { if (currentData[i] !== lastScoutData[i]) diffPixels++; }
         
-        console.log('[AUTO-CAPTURE] Pixel comparison result:', {
-            diffPixels,
-            threshold: 10,
-            isProcessing: window.isProcessing,
-            hasLastScoutData: !!lastScoutData
-        });
+        if (getSetting('debug')) {
+            console.log('[AUTO-CAPTURE] Pixel comparison result:', {
+                diffPixels,
+                threshold: 10,
+                isProcessing: window.isProcessing,
+                hasLastScoutData: !!lastScoutData
+            });
+        }
         
         if (diffPixels > 10) {
             // Clear any pending stability timer before making new decisions
             clearTimeout(stabilityTimer);
             if (autoToggle?.parentElement) autoToggle.parentElement.classList.remove('active');
             
-            console.log('[AUTO-CAPTURE] Significant change detected, starting stability timer');
+            if (getSetting('debug')) console.log('[AUTO-CAPTURE] Significant change detected, starting stability timer');
             if (autoToggle.parentElement) autoToggle.parentElement.classList.add('active');
             
             stabilityTimer = setTimeout(() => {
@@ -937,21 +945,25 @@ function checkAutoCapture() {
                 
                 // Re-verify conditions after 800ms delay
                 if (getSetting('autoCapture') && !window.isProcessing) {
-                    console.log('[AUTO-CAPTURE] Stability timer fired - Triggering capture');
+                    if (getSetting('debug')) console.log('[AUTO-CAPTURE] Stability timer fired - Triggering capture');
                     captureFrame(activeSelection);
                 } else {
-                    console.log('[AUTO-CAPTURE] Stability timer fired but conditions not met:', {
-                        autoCapture: getSetting('autoCapture'),
-                        isProcessing: window.isProcessing
-                    });
+                    if (getSetting('debug')) {
+                        console.log('[AUTO-CAPTURE] Stability timer fired but conditions not met:', {
+                            autoCapture: getSetting('autoCapture'),
+                            isProcessing: window.isProcessing
+                        });
+                    }
                 }
             }, 800);
         }
     } else {
-        console.log('[AUTO-CAPTURE] Skipping pixel comparison:', {
-            isProcessing: window.isProcessing,
-            hasLastScoutData: !!lastScoutData
-        });
+        if (getSetting('debug')) {
+            console.log('[AUTO-CAPTURE] Skipping pixel comparison:', {
+                isProcessing: window.isProcessing,
+                hasLastScoutData: !!lastScoutData
+            });
+        }
     }
     lastScoutData = new Uint32Array(currentData);
 }
@@ -2203,14 +2215,14 @@ function initEventListeners() {
                     // Start timer if not already running
                     if (!autoCaptureTimer) {
                         autoCaptureTimer = setInterval(checkAutoCapture, 500);
-                        console.log('[AUTO-CAPTURE] Timer started via checkbox toggle');
+                        if (getSetting('debug')) console.log('[AUTO-CAPTURE] Timer started via checkbox toggle');
                     }
                 } else {
                     // Stop timer if running
                     if (autoCaptureTimer) {
                         clearInterval(autoCaptureTimer);
                         autoCaptureTimer = null;
-                        console.log('[AUTO-CAPTURE] Timer stopped via checkbox toggle');
+                        if (getSetting('debug')) console.log('[AUTO-CAPTURE] Timer stopped via checkbox toggle');
                     }
                     // Also clear stability timer
                     if (stabilityTimer) {
