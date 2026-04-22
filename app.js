@@ -161,6 +161,33 @@ function startSplashHintRotation() {
 // DOM Elements (Identified as Gold v3.1.1 Lifecycle Nodes)
 let selectWindowBtn, vnVideo, selectionOverlay, historyContent, ttsVoiceSelect, speakLatestBtn, latestText, ocrStatus, refreshOcrBtn, clearHistoryBtn, engineSelector, modeSelector, autoToggle, autoCaptureBtn, upscaleSlider, upscaleVal, perfIcon, perfInfo, menuPurge, menuBtn, sideMenu, menuBackdrop, menuInstall, menuGuide, menuContact, menuReset;
 
+// Assign DOM elements (race-safe, script at end of body)
+selectWindowBtn = document.getElementById('select-window-btn');
+vnVideo = document.getElementById('vn-video');
+selectionOverlay = document.getElementById('selection-overlay');
+historyContent = document.getElementById('history-content');
+ttsVoiceSelect = document.getElementById('tts-voice-select');
+speakLatestBtn = document.getElementById('speak-latest-btn');
+latestText = document.getElementById('latest-text');
+ocrStatus = document.getElementById('ocr-status');
+refreshOcrBtn = document.getElementById('refresh-ocr-btn');
+clearHistoryBtn = document.getElementById('clear-history-btn');
+engineSelector = document.getElementById('model-selector');
+modeSelector = document.getElementById('mode-selector');
+autoToggle = document.getElementById('auto-capture-toggle');
+autoCaptureBtn = document.getElementById('auto-capture-btn');
+upscaleSlider = document.getElementById('upscale-slider');
+upscaleVal = document.getElementById('upscale-val');
+perfIcon = document.getElementById('perf-icon');
+perfInfo = document.getElementById('perf-info');
+menuBtn = document.getElementById('menu-btn');
+sideMenu = document.getElementById('side-menu');
+menuBackdrop = document.getElementById('menu-backdrop');
+menuInstall = document.getElementById('menu-install');
+menuGuide = document.getElementById('menu-guide');
+menuContact = document.getElementById('menu-contact');
+menuReset = document.getElementById('menu-reset');
+
 // === Throttling & Readiness State (Patch v3.1 Gold) ===
 let captureLocked = false;
 let engineReady = false;
@@ -558,6 +585,7 @@ if (typeof historyContent !== 'undefined' && historyContent) {
         if (!getSetting('autoCopy')) return;
         const sel = window.getSelection().toString().trim();
         if (!sel) return;
+        console.debug('[Auto-Copy] Copying selection from history:', sel);
         try {
             await navigator.clipboard.writeText(sel);
             historyContent.classList.add('copied-flash');
@@ -573,6 +601,7 @@ if (typeof latestText !== 'undefined' && latestText) {
         if (!getSetting('autoCopy')) return;
         const sel = window.getSelection().toString().trim();
         if (!sel) return;
+        console.debug('[Auto-Copy] Copying selection from latest text:', sel);
         try {
             await navigator.clipboard.writeText(sel);
             latestText.classList.add('copied-flash');
