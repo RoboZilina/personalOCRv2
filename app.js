@@ -554,14 +554,17 @@ if (typeof historyContent !== 'undefined' && historyContent) {
             setTimeout(() => btn.textContent = '📋', 1000);
         }
     });
-    historyContent.addEventListener('mouseup', () => {
+    historyContent.addEventListener('mouseup', async () => {
         if (!getSetting('autoCopy')) return;
         const sel = window.getSelection().toString().trim();
         if (!sel) return;
-        navigator.clipboard.writeText(sel).then(() => {
-            historyContent.style.outline = '2px solid var(--accent)';
-            setTimeout(() => { historyContent.style.outline = ''; }, 300);
-        }).catch(() => { });
+        try {
+            await navigator.clipboard.writeText(sel);
+            historyContent.classList.add('copied-flash');
+            setTimeout(() => historyContent.classList.remove('copied-flash'), 200);
+        } catch (err) {
+            console.warn("[UX] Auto-Copy failed (clipboard restricted):", err);
+        }
     });
 }
 
@@ -2160,8 +2163,32 @@ function initEventListeners() {
     // 4. Secondary Controls (Null-guarded Sync)
     if (autoToggle) {
         autoToggle.onchange = (e) => {
-            setSetting('autoCapture', e.target.checked);
+            const isChecked = e.target.checked;
+            setSetting('autoCapture', isChecked);
             applySettingsToUI();
+            
+            // Minimal fix: Start/stop timer when checkbox is toggled while capture is active
+            if (videoStream) {
+                if (isChecked) {
+                    // Start timer if not already running
+                    if (!autoCaptureTimer) {
+                        autoCaptureTimer = setInterval(checkAutoCapture, 500);
+                        console.log('[AUTO-CAPTURE] Timer started via checkbox toggle');
+                    }
+                } else {
+                    // Stop timer if running
+                    if (autoCaptureTimer) {
+                        clearInterval(autoCaptureTimer);
+                        autoCaptureTimer = null;
+                        console.log('[AUTO-CAPTURE] Timer stopped via checkbox toggle');
+                    }
+                    // Also clear stability timer
+                    if (stabilityTimer) {
+                        clearTimeout(stabilityTimer);
+                        stabilityTimer = null;
+                    }
+                }
+            }
         };
     }
 
