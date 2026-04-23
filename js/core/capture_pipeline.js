@@ -110,6 +110,7 @@ async function captureFrame(rect = null) {
             results.push({ text: first.text, confidence: first.confidence });
             for (let i = 1; i < canvases.length; i++) {
                 window.setOCRStatus('processing', `Analyst: Pass ${i + 1}/5...`);
+                await new Promise(r => setTimeout(r, 0)); // yield for UI paint
                 // Pinning: Pass pinnedEngine to runOCR
                 const r = await window.EngineManager.runOCR(canvases[i], { engineInstance: pinnedEngine });
                 if (window.captureGeneration !== myGen) {
@@ -165,6 +166,7 @@ async function captureFrame(rect = null) {
 
             try {
                 window.setOCRStatus(window.STATUS.PROCESSING, `Processing (${i + 1}/${canvases.length})`, (i + 1) / canvases.length);
+                await new Promise(r => setTimeout(r, 0)); // yield for UI paint
                 // Pinning: Pass pinnedEngine instance to runOCR
                 const result = await window.EngineManager.runOCR(clean, { engineInstance: pinnedEngine });
                 if (window.captureGeneration !== myGen) {
