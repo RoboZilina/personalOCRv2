@@ -293,11 +293,11 @@ body.text-area-large .app-main.manga-layout .transcription-tray { width: 650px; 
     font-size: 13px; 
     font-weight: 700;
     letter-spacing: 0.3px;
-    background: rgba(13, 13, 16, 0.8); 
-    color: var(--text-dim); 
-    padding: 8px 18px; 
-    border-radius: 20px; 
-    border: 1px solid var(--border); 
+    background: rgba(13, 13, 16, 0.8);
+    color: var(--text);
+    padding: 8px 18px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); 
@@ -334,8 +334,8 @@ body.text-area-large .app-main.manga-layout .transcription-tray { width: 650px; 
 }
 
 /* State-Specific Aesthetics */
-.status-pill.loading, .status-pill.preloading { 
-    color: #f87171; 
+.status-pill.loading, .status-pill.preloading, .status-pill.pre-loading {
+    color: #f87171;
     border-color: rgba(248, 113, 113, 0.4);
     box-shadow: 0 0 15px rgba(248, 113, 113, 0.1);
 }
@@ -352,17 +352,17 @@ body.text-area-large .app-main.manga-layout .transcription-tray { width: 650px; 
 }
 
 /* Warming-up: amber, shows --progress fill */
-.status-pill.warming {
+.status-pill.warming, .status-pill.warming-up {
     color: #fbbf24;
     border-color: rgba(251, 191, 36, 0.4);
     box-shadow: 0 0 12px rgba(251, 191, 36, 0.1);
 }
-.status-pill.warming::before {
+.status-pill.warming::before, .status-pill.warming-up::before {
     background: rgba(251, 191, 36, 0.15);
 }
 
 /* Loading / Preloading: indeterminate shimmer (no --progress known) */
-.status-pill.loading::before, .status-pill.preloading::before {
+.status-pill.loading::before, .status-pill.preloading::before, .status-pill.pre-loading::before {
     /* Indeterminate: fill the full bar with an animated shimmer instead of a
        growing width. Use a gradient so the shimmer sweeps across a solid fill. */
     width: 100%;
@@ -648,7 +648,7 @@ body.light-theme .ui-select, body.light-theme .status-pill { background: #fff; c
 
 /* Status-pill state overrides for light theme */
 body.light-theme .status-pill.loading,
-body.light-theme .status-pill.preloading {
+body.light-theme .status-pill.preloading, body.light-theme .status-pill.pre-loading {
     color: #dc2626;
     border-color: rgba(220, 38, 38, 0.4);
     box-shadow: 0 0 15px rgba(220, 38, 38, 0.1);
@@ -661,16 +661,16 @@ body.light-theme .status-pill.downloading {
 body.light-theme .status-pill.downloading::before {
     background: rgba(37, 99, 235, 0.2);
 }
-body.light-theme .status-pill.warming {
+body.light-theme .status-pill.warming, body.light-theme .status-pill.warming-up {
     color: #d97706;
     border-color: rgba(217, 119, 6, 0.4);
     box-shadow: 0 0 12px rgba(217, 119, 6, 0.1);
 }
-body.light-theme .status-pill.warming::before {
+body.light-theme .status-pill.warming::before, body.light-theme .status-pill.warming-up::before {
     background: rgba(217, 119, 6, 0.15);
 }
 body.light-theme .status-pill.loading::before,
-body.light-theme .status-pill.preloading::before {
+body.light-theme .status-pill.preloading::before, body.light-theme .status-pill.pre-loading::before {
     background: linear-gradient(
         90deg,
         rgba(220, 38, 38, 0.08) 0%,
