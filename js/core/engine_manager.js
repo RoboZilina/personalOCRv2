@@ -4,7 +4,7 @@
  * Gold v3.8 Compliance
  */
 
-import { STATUS } from './status.js?v=3.8.5';
+import { STATUS } from './status.js?v=3.8.6';
 
 // EngineManager (Singleton)
 // Central source of truth for engine lifecycle and identity.
@@ -321,8 +321,8 @@ const EngineManager = ((engines) => {
      */
     async function loadEngineInWorker(id) {
         const workerPath = id === 'paddle'
-            ? '/js/paddle/paddle_preload_worker.js?v=3.8.5'
-            : '/js/manga/manga_preload_worker.js?v=3.8.5';
+            ? '/js/paddle/paddle_preload_worker.js?v=3.8.6'
+            : '/js/manga/manga_preload_worker.js?v=3.8.6';
 
         return new Promise((resolve, reject) => {
             const worker = new Worker(workerPath, { type: 'module' });

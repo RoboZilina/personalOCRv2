@@ -4,7 +4,7 @@
  * Gold v3.8 Compliance
  */
 
-import { STATUS } from '../core/status.js?v=3.8.5';
+import { STATUS } from '../core/status.js?v=3.8.6';
 import { getSetting } from '../../settings.js';
 
 // ==========================================

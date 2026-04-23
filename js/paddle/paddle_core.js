@@ -1,4 +1,4 @@
-export { fetchWithProgress } from '../utils/fetch_utils.js?v=3.8.5';
+export { fetchWithProgress } from '../utils/fetch_utils.js?v=3.8.6';
 
 // Shared resources for zero-churn tensor conversion
 let sharedCanvas = null;

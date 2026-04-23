@@ -1,5 +1,5 @@
-import '/js/onnx/ort.min.js?v=3.8.5';
-import { PaddleOCR } from './paddle_engine.js?v=3.8.5';
+import '/js/onnx/ort.min.js?v=3.8.6';
+import { PaddleOCR } from './paddle_engine.js?v=3.8.6';
 
 self.onmessage = async (e) => {
     const { command, id } = e.data;

@@ -1,6 +1,6 @@
-import { fetchWithProgress, canvasToFloat32Tensor } from './paddle_core.js?v=3.8.5';
-import { isWebGPUSupported } from '../onnx/onnx_support.js?v=3.8.5';
-import { STATUS } from '../core/status.js?v=3.8.5';
+import { fetchWithProgress, canvasToFloat32Tensor } from './paddle_core.js?v=3.8.6';
+import { isWebGPUSupported } from '../onnx/onnx_support.js?v=3.8.6';
+import { STATUS } from '../core/status.js?v=3.8.6';
 
 function getOrtRuntime() {
     const ortRuntime = globalThis.ort;

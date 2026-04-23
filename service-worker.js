@@ -1,9 +1,9 @@
-const CACHE_NAME = 'personalocr-v3.8.5-gold-patch2';
+const CACHE_NAME = 'personalocr-v3.8.6-gold-patch2';
 
 /**
  * Normalize URL to pathname-only for consistent cache keys.
  * Strips query parameters to align install-time and runtime caching.
- * @param {string} urlString - Full URL (may include query params like ?v=3.8.5)
+ * @param {string} urlString - Full URL (may include query params like ?v=3.8.6)
  * @returns {string} Normalized pathname
  */
 function normalizeUrl(urlString) {
@@ -18,17 +18,17 @@ function normalizeUrl(urlString) {
 
 const ASSETS = [
   '/',
-  '/app.js?v=3.8.5',
+  '/app.js?v=3.8.6',
   '/index.html',
-  '/js/core/capture_pipeline.js?v=3.8.5',
-  '/js/core/engine_manager.js?v=3.8.5',
-  '/js/core/status.js?v=3.8.5',
-  '/js/ui/ui_controller.js?v=3.8.5',
+  '/js/core/capture_pipeline.js?v=3.8.6',
+  '/js/core/engine_manager.js?v=3.8.6',
+  '/js/core/status.js?v=3.8.6',
+  '/js/ui/ui_controller.js?v=3.8.6',
   '/icon-192.png',
   '/icon-512.png',
-  '/js/manga/manga_engine.js?v=3.8.5',
-  '/js/manga/manga_preload_worker.js?v=3.8.5',
-  '/js/onnx/onnx_support.js?v=3.8.5',
+  '/js/manga/manga_engine.js?v=3.8.6',
+  '/js/manga/manga_preload_worker.js?v=3.8.6',
+  '/js/onnx/onnx_support.js?v=3.8.6',
   '/js/onnx/ort-wasm-simd-threaded.jsep.mjs',
   '/js/onnx/ort-wasm-simd-threaded.jsep.wasm',
   '/js/onnx/ort-wasm-simd-threaded.wasm',
@@ -36,10 +36,10 @@ const ASSETS = [
   '/js/onnx/ort-wasm-threaded.wasm',
   '/js/onnx/ort-wasm.wasm',
   '/js/onnx/ort.min.js',
-  '/js/paddle/paddle_core.js?v=3.8.5',
-  '/js/paddle/paddle_engine.js?v=3.8.5',
-  '/js/paddle/paddle_preload_worker.js?v=3.8.5',
-  '/js/tesseract/tesseract_engine.js?v=3.8.5',
+  '/js/paddle/paddle_core.js?v=3.8.6',
+  '/js/paddle/paddle_engine.js?v=3.8.6',
+  '/js/paddle/paddle_preload_worker.js?v=3.8.6',
+  '/js/tesseract/tesseract_engine.js?v=3.8.6',
   '/js/tesseract/worker.min.js',
   '/js/tesseract/tesseract.min.js',
   '/js/tesseract/core/tesseract-core.wasm',
@@ -50,7 +50,7 @@ const ASSETS = [
   '/js/tesseract/core/tesseract-core-simd.wasm.js',
   '/js/tesseract/core/tesseract-core-simd-lstm.wasm',
   '/js/tesseract/core/tesseract-core-simd-lstm.wasm.js',
-  '/js/utils/fetch_utils.js?v=3.8.5',
+  '/js/utils/fetch_utils.js?v=3.8.6',
   '/manifest.json',
   '/models/manga/config.json',
   '/models/manga/manifest.json',
@@ -58,8 +58,8 @@ const ASSETS = [
   '/models/manga/vocab.json',
   '/models/paddle/japan_dict.txt',
   '/models/paddle/manifest.json',
-  '/settings.js?v=3.8.5',
-  '/styles.css?v=3.8.5'
+  '/settings.js?v=3.8.6',
+  '/styles.css?v=3.8.6'
 ];
 
 // 1. Installs Assets (Cache-First)
