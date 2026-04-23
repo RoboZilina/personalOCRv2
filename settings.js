@@ -21,7 +21,7 @@ const defaultSettings = {
     textSize: "standard",          // "small", "standard", "large"
     upscaleFactor: 2.0,
     skipPreloading: false,
-    vnTextCleanerEnabled: false
+    vnTextCleanerEnabled: true
 };
 
 let currentSettings = { ...defaultSettings };
